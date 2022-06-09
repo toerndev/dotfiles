@@ -1,10 +1,14 @@
 " Neovim setup
 " - No need to build from source since features are provided by plugins!
+"
 " - Check if distro provides plugins before using pip/npm/AUR
+"
 "   e.g. `sudo pacman -S neovim python-neovim python2-neovim`
 "   If not, `python -m pip install neovim`, `npm i -g neovim`.
+"
 " - :checkhealth
-" - Dependencies: rg, fd
+"
+" Dependencies: rg, fd
 "
 " Install Plug:
 " curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
@@ -29,6 +33,8 @@ set showtabline=2 " 1=if multiple tabs, 2=always
 set synmaxcol=200 cc=100
 set expandtab tabstop=2 softtabstop=2 shiftwidth=2
 set listchars=tab:➝\ ,
+set wildignore+=*/.git/*,*/node_modules/*
+set nohls
 
 let mapleader=","
 let maplocalleader=","
@@ -84,7 +90,9 @@ Plug 'tpope/vim-surround'
 call plug#end()
 
 " Plugin config: Basic {{{
+set t_Co=256
 colorscheme gruvbox
+set background=dark
 " }}}
 
 " Plugin config: Telescope {{{
@@ -112,6 +120,7 @@ nnoremap <leader>ff <cmd>Telescope find_files<cr>
 
 " Plugin config: LSP & Completion {{{
 lua require('me.cmp')
+lua require('me.lsp')
 "   Set completeopt to have a better completion experience
 set completeopt=menuone,noinsert,noselect
 "   Avoid showing extra message when using completion
