@@ -9,7 +9,13 @@ If not, `python -m pip install neovim`, `npm i -g neovim`.
 
 :checkhealth
 
-Dependencies: rg, fd
+Dependencies: rg, ag, fd?
+
+Font patching:
+  - Ubuntu/gnome-terminal:
+    Download nerd font to ~/.fonts
+    fc-cache -fv
+    gnome-tweaks to set global monospace font
 
 Install Plug:
 curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
@@ -80,11 +86,14 @@ Plug('hrsh7th/cmp-cmdline')
 Plug('hrsh7th/nvim-cmp')
 Plug('onsails/lspkind-nvim')
 Plug('neovim/nvim-lspconfig')
+Plug('L3MON4D3/LuaSnip')
+Plug('saadparwaiz1/cmp_luasnip')
 
 -- Plugins: generic coding
 Plug('tpope/vim-commentary')
 Plug('tpope/vim-unimpaired')
 Plug('tpope/vim-surround')
+Plug('tpope/vim-fugitive')
 
 vim.call('plug#end')
 -- } Plugins
@@ -119,8 +128,8 @@ close tabs as well as windows (see window bindings below).
 --]]
 
 -- Configuration: nvim-cmp
--- require('me.cmp')
--- require('me.lsp')
+require('me.cmp')
+require('me.lsp')
 -- set completeopt to have a better completion experience
 vim.opt.completeopt = 'menu,menuone,noselect'
 -- avoid showing extra message when using completion

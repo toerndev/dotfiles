@@ -2,9 +2,8 @@ local cmp = require("cmp")
 
 cmp.setup({
 	snippet = {
-		-- REQUIRED - you must specify a snippet engine
 		expand = function(args)
-			-- require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
+			require('luasnip').lsp_expand(args.body)
 		end,
 	},
 	mapping = {
@@ -20,7 +19,7 @@ cmp.setup({
 	},
 	sources = cmp.config.sources({
 		{ name = "nvim_lsp", keyword_length = 3 },
-		-- { name = 'luasnip' }, -- For luasnip users.
+		{ name = 'luasnip' },
 		{ name = "buffer", keyword_length = 5 },
 		{ name = "path", keyword_length = 5 },
 	}),
