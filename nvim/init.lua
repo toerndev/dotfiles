@@ -105,12 +105,12 @@ vim.opt.background = 'dark'
 
 -- Configuration: Telescope
 vim.cmd('nnoremap <leader>ff <cmd>Telescope find_files<cr>')
+vim.api.nvim_set_keymap('n', '<leader>fp', ':lua require(\'me.telescope\').find_files_project()<cr>', {noremap = true})
+-- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')
+vim.api.nvim_set_keymap('n', '<leader>f/', ':lua require(\'me.telescope\').grep_pattern(vim.fn.input(\'Grep for > \'))<cr>', {noremap = true})
 --[[
-nnoremap <leader>f/ :lua require('me.telescope').grep_pattern(vim.fn.input("Grep for > "))<CR>
 nnoremap <leader>f* :lua require('me.telescope').grep_cword()<CR>
 nnoremap <leader>fb :lua require('telescope.builtin').buffers()<CR>
-nnoremap <leader>fp :lua require('me.telescope').find_files_project()<CR>
-nnoremap <leader>fa :lua require('me.telescope').find_files()<CR>
 nnoremap <leader>fw :lua require('me.telescope').git_worktree()<CR>
 nnoremap <leader>ft :lua require('me.telescope').git_trunk()<CR>
 nnoremap <leader>fs :lua require('me.telescope').git_show_qf()<CR>
