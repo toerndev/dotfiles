@@ -67,6 +67,7 @@ vim.call('plug#begin', '~/.config/nvim/plugged')
 -- Plugins: style
 Plug('morhetz/gruvbox')
 Plug('ryanoasis/vim-devicons')
+Plug('nvim-lualine/lualine.nvim')
 
 -- Plugins: browser
 Plug('nvim-lua/plenary.nvim')
@@ -105,19 +106,19 @@ vim.opt.background = 'dark'
 
 -- Configuration: Telescope
 vim.cmd('nnoremap <leader>ff <cmd>Telescope find_files<cr>')
+vim.api.nvim_set_keymap('n', '<leader>fb', ':lua require(\'telescope.builtin\').buffers()<cr>', {noremap = true})
 vim.api.nvim_set_keymap('n', '<leader>fp', ':lua require(\'me.telescope\').find_files_project()<cr>', {noremap = true})
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')
 vim.api.nvim_set_keymap('n', '<leader>f/', ':lua require(\'me.telescope\').grep_pattern(vim.fn.input(\'Grep for > \'))<cr>', {noremap = true})
 --[[
-nnoremap <leader>f* :lua require('me.telescope').grep_cword()<CR>
-nnoremap <leader>fb :lua require('telescope.builtin').buffers()<CR>
-nnoremap <leader>fw :lua require('me.telescope').git_worktree()<CR>
-nnoremap <leader>ft :lua require('me.telescope').git_trunk()<CR>
-nnoremap <leader>fs :lua require('me.telescope').git_show_qf()<CR>
-nnoremap <leader>fy :lua require('me.telescope').search_dotfiles()<CR>
-nnoremap <leader>fk :lua require('me.telescope').search_kb()<CR>
-nnoremap <leader>bp :lua require('telescope').extensions.file_browser.file_browser()<CR>
-nnoremap <leader>fh :lua require('telescope').extensions.file_browser.file_browser({ path=vim.fn.expand("%:p:h")})<CR>
+nnoremap <leader>f* :lua require('me.telescope').grep_cword()<cr>
+nnoremap <leader>fw :lua require('me.telescope').git_worktree()<cr>
+nnoremap <leader>ft :lua require('me.telescope').git_trunk()<cr>
+nnoremap <leader>fs :lua require('me.telescope').git_show_qf()<cr>
+nnoremap <leader>fy :lua require('me.telescope').search_dotfiles()<cr>
+nnoremap <leader>fk :lua require('me.telescope').search_kb()<cr>
+nnoremap <leader>bp :lua require('telescope').extensions.file_browser.file_browser()<cr>
+nnoremap <leader>fh :lua require('telescope').extensions.file_browser.file_browser({ path=vim.fn.expand("%:p:h")})<cr>
 
 After opening a window to search for a file (or text), just hit enter to open
 the file, or Ctrl-t to open it in a new tab. You can switch tabs with `gt`
@@ -140,3 +141,52 @@ vim.cmd('autocmd FileType graphql setlocal noexpandtab')
 -- emacs-style jump to beginning/end of line in insert mode
 vim.cmd('inoremap <C-a> <C-o>0')
 vim.cmd('inoremap <C-e> <C-o>A')
+
+-- WIP below
+vim.cmd('inoremap <silent><C-k> <C-x><C-o>')
+
+require('me.lualine')
+vim.fn.sign_define('LspDiagnosticsSignError', { text='', texthl=lualine_c_diagnostics_error_normal })
+vim.fn.sign_define('LspDiagnosticsSignWarning', { text='', texthl=lualine_c_diagnostics_warning_normal })
+vim.fn.sign_define('LspDiagnosticsSignInformation', { text='', texthl=lualine_c_diagnostics_info_normal })
+vim.fn.sign_define('LspDiagnosticsSignHint', { text='', texthl=lualine_c_diagnostics_info_normal })
+
+-- Diagnostics key bindings
+vim.cmd('nnoremap <silent>glj	<cmd>lua vim.diagnostic.goto_next{ wrap = true }<cr>')
+vim.cmd('nnoremap <silent>glk	<cmd>lua vim.diagnostic.goto_prev{ wrap = true }<cr>')
+vim.cmd('nnoremap <silent>gll	<cmd>lua vim.diagnostic.setloclist()<cr>')
+vim.cmd('nnoremap <silent>glq	<cmd>lua vim.diagnostic.setqflist()<cr>')
+vim.cmd('nnoremap <silent>L	<cmd>lua vim.diagnostic.open_float({ source = always })<cr>')
+vim.diagnostic.config({
+  float = {
+    format = function(diagnostic)
+	return string.format('%s [%s]', diagnostic.message, diagnostic.source == 'eslint' and diagnostic.user_data.lsp.code or diagnostic.source)
+    end,
+    severity_sort = true,
+    close_events = { 'BufLeave', 'CursorMoved', 'InsertEnter', 'FocusLost' },
+    max_width = 80,
+  },
+})
+
+-- Navigation
+vim.api.nvim_set_keymap('n', '<Left>', '<<', {noremap = true})
+vim.api.nvim_set_keymap('n', '<Right>', '>>', {noremap = true})
+vim.api.nvim_set_keymap('v', '<Left>', '<gv', {noremap = true})
+vim.api.nvim_set_keymap('v', '<Right>', '>gv', {noremap = true})
+
+vim.cmd('nnoremap <silent>K <cmd>lua vim.lsp.buf.hover()<cr>')
+vim.cmd('nnoremap <silent><C-]> <cmd>lua vim.lsp.buf.definition()<cr>')
+vim.cmd('nnoremap <silent><C-s> <cmd>lua vim.lsp.buf.signature_help()<cr>')
+vim.cmd('nnoremap <silent>gld <cmd>lua vim.lsp.buf.declaration()<cr>')
+vim.cmd('nnoremap <silent>glt <cmd>lua vim.lsp.buf.type_definition()<cr>')
+vim.cmd('nnoremap <silent>gli <cmd>lua vim.lsp.buf.implementation()<cr>')
+vim.cmd('nnoremap <silent>glr <cmd>lua vim.lsp.buf.references()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>glc <cmd>lua vim.lsp.buf.incoming_calls()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>glC <cmd>lua vim.lsp.buf.outgoing_calls()<cr>:copen<cr>')
+
+-- Refactoring
+vim.cmd('nnoremap <silent>glw <cmd>lua vim.lsp.buf.rename()<cr>')
+vim.cmd('nnoremap <silent>glf <cmd>lua vim.lsp.buf.formatting()<cr>')
+vim.cmd('nnoremap <silent>gla <cmd>lua vim.lsp.buf.code_action()<cr>')
+
+require('me.treesitter')
