@@ -9,8 +9,6 @@ If not, `python -m pip install neovim`, `npm i -g neovim`.
 
 :checkhealth
 
-Dependencies: rg, ag, fd?
-
 Font patching:
   - Ubuntu/gnome-terminal:
     Download nerd font to ~/.fonts
@@ -73,6 +71,7 @@ Plug('nvim-lualine/lualine.nvim')
 Plug('nvim-lua/plenary.nvim')
 Plug('nvim-telescope/telescope.nvim')
 Plug('nvim-telescope/telescope-file-browser.nvim')
+-- fd: install using distro package manager
 
 -- Plugins: LSP + completion
 Plug('nvim-treesitter/nvim-treesitter', {
@@ -89,6 +88,11 @@ Plug('onsails/lspkind-nvim')
 Plug('neovim/nvim-lspconfig')
 Plug('L3MON4D3/LuaSnip')
 Plug('saadparwaiz1/cmp_luasnip')
+Plug('jose-elias-alvarez/null-ls.nvim')
+Plug('jose-elias-alvarez/nvim-lsp-ts-utils')
+-- typescript-language-server: install globally with npm
+-- vscode-langservers-extracted: install globally with npm
+-- @fsouza/prettierd: install globally with npm
 
 -- Plugins: generic coding
 Plug('tpope/vim-commentary')
@@ -152,10 +156,10 @@ vim.fn.sign_define('LspDiagnosticsSignInformation', { text='', texthl=lualine
 vim.fn.sign_define('LspDiagnosticsSignHint', { text='', texthl=lualine_c_diagnostics_info_normal })
 
 -- Diagnostics key bindings
-vim.cmd('nnoremap <silent>glj	<cmd>lua vim.diagnostic.goto_next{ wrap = true }<cr>')
-vim.cmd('nnoremap <silent>glk	<cmd>lua vim.diagnostic.goto_prev{ wrap = true }<cr>')
-vim.cmd('nnoremap <silent>gll	<cmd>lua vim.diagnostic.setloclist()<cr>')
-vim.cmd('nnoremap <silent>glq	<cmd>lua vim.diagnostic.setqflist()<cr>')
+vim.cmd('nnoremap <silent>gj	<cmd>lua vim.diagnostic.goto_next{ wrap = true }<cr>')
+vim.cmd('nnoremap <silent>gk	<cmd>lua vim.diagnostic.goto_prev{ wrap = true }<cr>')
+vim.cmd('nnoremap <silent>gl	<cmd>lua vim.diagnostic.setloclist()<cr>')
+vim.cmd('nnoremap <silent>gq	<cmd>lua vim.diagnostic.setqflist()<cr>')
 vim.cmd('nnoremap <silent>L	<cmd>lua vim.diagnostic.open_float({ source = always })<cr>')
 vim.diagnostic.config({
   float = {
@@ -177,11 +181,11 @@ vim.api.nvim_set_keymap('v', '<Right>', '>gv', {noremap = true})
 vim.cmd('nnoremap <silent>K <cmd>lua vim.lsp.buf.hover()<cr>')
 vim.cmd('nnoremap <silent><C-]> <cmd>lua vim.lsp.buf.definition()<cr>')
 vim.cmd('nnoremap <silent><C-s> <cmd>lua vim.lsp.buf.signature_help()<cr>')
-vim.cmd('nnoremap <silent>gd <cmd>lua vim.lsp.buf.declaration()<cr>')
+vim.cmd('nnoremap <silent>gld <cmd>lua vim.lsp.buf.declaration()<cr>')
 vim.cmd('nnoremap <silent>gt <cmd>lua vim.lsp.buf.type_definition()<cr>')
 vim.cmd('nnoremap <silent>gi <cmd>lua vim.lsp.buf.implementation()<cr>')
 vim.cmd('nnoremap <silent>gr <cmd>lua vim.lsp.buf.references()<cr>:copen<cr>')
-vim.cmd('nnoremap <silent>gc <cmd>lua vim.lsp.buf.incoming_calls()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>glc <cmd>lua vim.lsp.buf.incoming_calls()<cr>:copen<cr>')
 vim.cmd('nnoremap <silent>gC <cmd>lua vim.lsp.buf.outgoing_calls()<cr>:copen<cr>')
 
 -- Refactoring
