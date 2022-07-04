@@ -77,5 +77,5 @@ null_ls.setup({
       ]]
     end
   end,
-  -- root_dir = null_ls_utils.root_pattern '.git'
+  root_dir = null_ls_utils.root_pattern '.git'
 })
