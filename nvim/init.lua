@@ -1,8 +1,6 @@
 --[[
 Neovim setup
 
-No need to build from source since features are provided by plugins!
-
 Check if distro provides plugins before using pip/npm/AUR
 e.g. `sudo pacman -S neovim python-neovim python2-neovim`
 If not, `python -m pip install neovim`, `npm i -g neovim`.
@@ -18,7 +16,18 @@ Font patching:
 Install Plug:
 curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
---]]
+
+Install using distro package manager:
+- fd: install using distro package manager
+
+Install globally with npm:
+- typescript-language-server
+- vscode-langservers-extracted
+- @fsouza/prettierd
+- @johnnymorganz/stylua
+- typescript
+
+]]
 
 -- Paths {
 vim.g.python3_host_prog = '/bin/python'
@@ -71,7 +80,6 @@ Plug('nvim-lualine/lualine.nvim')
 Plug('nvim-lua/plenary.nvim')
 Plug('nvim-telescope/telescope.nvim')
 Plug('nvim-telescope/telescope-file-browser.nvim')
--- fd: install using distro package manager
 
 -- Plugins: LSP + completion
 Plug('nvim-treesitter/nvim-treesitter', {
@@ -90,15 +98,13 @@ Plug('L3MON4D3/LuaSnip')
 Plug('saadparwaiz1/cmp_luasnip')
 Plug('jose-elias-alvarez/null-ls.nvim')
 Plug('jose-elias-alvarez/nvim-lsp-ts-utils')
--- typescript-language-server: install globally with npm
--- vscode-langservers-extracted: install globally with npm
--- @fsouza/prettierd: install globally with npm
 
 -- Plugins: generic coding
 Plug('tpope/vim-commentary')
 Plug('tpope/vim-unimpaired')
 Plug('tpope/vim-surround')
 Plug('tpope/vim-fugitive')
+Plug('NTBBloodbath/rest.nvim')
 
 vim.call('plug#end')
 -- } Plugins
@@ -193,4 +199,32 @@ vim.cmd('nnoremap <silent>gw <cmd>lua vim.lsp.buf.rename()<cr>')
 vim.cmd('nnoremap <silent>gf <cmd>lua vim.lsp.buf.formatting()<cr>')
 vim.cmd('nnoremap <silent>ga <cmd>lua vim.lsp.buf.code_action()<cr>')
 
+vim.cmd('nnoremap <silent>rr <Plug>RestNvim<cr>')
+
 require('me.treesitter')
+
+-- REST client
+require("rest-nvim").setup({
+  -- Open request results in a horizontal split
+  result_split_horizontal = false,
+  -- Keep the http file buffer above|left when split horizontal|vertical
+  result_split_in_place = false,
+  -- Skip SSL verification, useful for unknown certificates
+  skip_ssl_verification = false,
+  -- Highlight request on run
+  highlight = {
+    enabled = true,
+    timeout = 150,
+  },
+  result = {
+    -- toggle showing URL, HTTP info, headers at top the of result window
+    show_url = true,
+    show_http_info = true,
+    show_headers = true,
+  },
+  -- Jump to request line on run
+  jump_to_request = false,
+  env_file = '.env',
+  custom_dynamic_variables = {},
+  yank_dry_run = true,
+})

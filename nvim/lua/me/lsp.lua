@@ -66,6 +66,7 @@ null_ls.setup({
     null_ls.builtins.formatting.prettierd.with({
       PRETTIERD_LOCAL_PRETTIER_ONLY = 1,
     }),
+    null_ls.builtins.formatting.stylua,
   },
   on_attach = function(client)
     if client.resolved_capabilities.document_formatting then
