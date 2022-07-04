@@ -65,7 +65,7 @@ local Plug = vim.fn['plug#']
 vim.call('plug#begin', '~/.config/nvim/plugged')
 
 -- Plugins: style
-Plug('morhetz/gruvbox')
+Plug('gruvbox-community/gruvbox')
 Plug('ryanoasis/vim-devicons')
 Plug('nvim-lualine/lualine.nvim')
 
@@ -105,11 +105,11 @@ vim.opt.background = 'dark'
 -- } Style
 
 -- Configuration: Telescope
-vim.cmd('nnoremap <leader>ff <cmd>Telescope find_files<cr>')
-vim.api.nvim_set_keymap('n', '<leader>fb', ':lua require(\'telescope.builtin\').buffers()<cr>', {noremap = true})
-vim.api.nvim_set_keymap('n', '<leader>fp', ':lua require(\'me.telescope\').find_files_project()<cr>', {noremap = true})
+vim.cmd('nnoremap <leader>f <cmd>Telescope find_files<cr>')
+vim.api.nvim_set_keymap('n', '<leader>b', ':lua require(\'telescope.builtin\').buffers()<cr>', {noremap = true})
+vim.api.nvim_set_keymap('n', '<leader>p', ':lua require(\'me.telescope\').find_files_project()<cr>', {noremap = true})
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')
-vim.api.nvim_set_keymap('n', '<leader>f/', ':lua require(\'me.telescope\').grep_pattern(vim.fn.input(\'Grep for > \'))<cr>', {noremap = true})
+vim.api.nvim_set_keymap('n', '<leader>/', ':lua require(\'me.telescope\').grep_pattern(vim.fn.input(\'Grep for > \'))<cr>', {noremap = true})
 --[[
 nnoremap <leader>f* :lua require('me.telescope').grep_cword()<cr>
 nnoremap <leader>fw :lua require('me.telescope').git_worktree()<cr>
@@ -177,16 +177,16 @@ vim.api.nvim_set_keymap('v', '<Right>', '>gv', {noremap = true})
 vim.cmd('nnoremap <silent>K <cmd>lua vim.lsp.buf.hover()<cr>')
 vim.cmd('nnoremap <silent><C-]> <cmd>lua vim.lsp.buf.definition()<cr>')
 vim.cmd('nnoremap <silent><C-s> <cmd>lua vim.lsp.buf.signature_help()<cr>')
-vim.cmd('nnoremap <silent>gld <cmd>lua vim.lsp.buf.declaration()<cr>')
-vim.cmd('nnoremap <silent>glt <cmd>lua vim.lsp.buf.type_definition()<cr>')
-vim.cmd('nnoremap <silent>gli <cmd>lua vim.lsp.buf.implementation()<cr>')
-vim.cmd('nnoremap <silent>glr <cmd>lua vim.lsp.buf.references()<cr>:copen<cr>')
-vim.cmd('nnoremap <silent>glc <cmd>lua vim.lsp.buf.incoming_calls()<cr>:copen<cr>')
-vim.cmd('nnoremap <silent>glC <cmd>lua vim.lsp.buf.outgoing_calls()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>gd <cmd>lua vim.lsp.buf.declaration()<cr>')
+vim.cmd('nnoremap <silent>gt <cmd>lua vim.lsp.buf.type_definition()<cr>')
+vim.cmd('nnoremap <silent>gi <cmd>lua vim.lsp.buf.implementation()<cr>')
+vim.cmd('nnoremap <silent>gr <cmd>lua vim.lsp.buf.references()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>gc <cmd>lua vim.lsp.buf.incoming_calls()<cr>:copen<cr>')
+vim.cmd('nnoremap <silent>gC <cmd>lua vim.lsp.buf.outgoing_calls()<cr>:copen<cr>')
 
 -- Refactoring
-vim.cmd('nnoremap <silent>glw <cmd>lua vim.lsp.buf.rename()<cr>')
-vim.cmd('nnoremap <silent>glf <cmd>lua vim.lsp.buf.formatting()<cr>')
-vim.cmd('nnoremap <silent>gla <cmd>lua vim.lsp.buf.code_action()<cr>')
+vim.cmd('nnoremap <silent>gw <cmd>lua vim.lsp.buf.rename()<cr>')
+vim.cmd('nnoremap <silent>gf <cmd>lua vim.lsp.buf.formatting()<cr>')
+vim.cmd('nnoremap <silent>ga <cmd>lua vim.lsp.buf.code_action()<cr>')
 
 require('me.treesitter')
