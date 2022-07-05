@@ -90,6 +90,7 @@ Plug("jose-elias-alvarez/nvim-lsp-ts-utils")
 
 -- Plugins: generic coding
 Plug("tpope/vim-commentary")
+Plug("JoosepAlviste/nvim-ts-context-commentstring")
 Plug("tpope/vim-unimpaired")
 Plug("tpope/vim-surround")
 Plug("tpope/vim-fugitive")
@@ -105,6 +106,7 @@ vim.opt.background = "dark"
 
 -- Configuration: Telescope
 vim.cmd("nnoremap <leader>f <cmd>Telescope find_files<cr>")
+vim.api.nvim_set_keymap("n", "<leader>Fc", ":lua require('me.telescope').search_config()<cr>", { noremap = true })
 vim.api.nvim_set_keymap("n", "<leader>b", ":lua require('telescope.builtin').buffers()<cr>", { noremap = true })
 vim.api.nvim_set_keymap("n", "<leader>p", ":lua require('me.telescope').find_files_project()<cr>", { noremap = true })
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')

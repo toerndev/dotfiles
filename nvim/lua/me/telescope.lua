@@ -15,11 +15,12 @@ require("telescope").setup({
 
 require("telescope").load_extension("file_browser")
 
+local configDir = vim.fn.fnamemodify(vim.env.MYVIMRC, ":p:h")
 return {
-	search_dotfiles = function()
+	search_config = function()
 		builtin.find_files({
 			prompt_title = "< Config Files >",
-			cwd = "~/.config/nvim",
+			cwd = configDir,
 		})
 	end,
 	search_kb = function()
