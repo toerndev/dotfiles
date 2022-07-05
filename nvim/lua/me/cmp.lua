@@ -3,7 +3,7 @@ local cmp = require("cmp")
 cmp.setup({
 	snippet = {
 		expand = function(args)
-			require('luasnip').lsp_expand(args.body)
+			require("luasnip").lsp_expand(args.body)
 		end,
 	},
 	mapping = {
@@ -19,7 +19,7 @@ cmp.setup({
 	},
 	sources = cmp.config.sources({
 		{ name = "nvim_lsp", keyword_length = 3 },
-		{ name = 'luasnip' },
+		{ name = "luasnip" },
 		{ name = "buffer", keyword_length = 5 },
 		{ name = "path", keyword_length = 5 },
 	}),
@@ -41,6 +41,6 @@ cmp.setup.cmdline("/", {
 cmp.setup.cmdline(":", {
 	sources = cmp.config.sources({
 		{ name = "path" },
-		{ name = "cmdline" },
+		{ name = "cmdline", keyword_length = 2 },
 	}),
 })
