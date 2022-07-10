@@ -16,8 +16,9 @@ npm i -g:
 - @fsouza/prettierd
 - typescript
 
-cargo install:
-- stylua
+lua:
+- sumneko/lua-language-server: extract precompiled binaries in ~/.local/lua, add to PATH.
+- stylua: cargo install stylua, PATH+=:$HOME/.cargo/bin.
 
 Font patching:
   - Ubuntu/gnome-terminal:

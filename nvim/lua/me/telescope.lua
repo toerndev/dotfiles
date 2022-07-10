@@ -3,12 +3,18 @@ local finders = require("telescope.finders")
 local make_entry = require("telescope.make_entry")
 local pickers = require("telescope.pickers")
 local builtin = require("telescope.builtin")
+local actions = require("telescope.actions")
 
 require("telescope").setup({
 	defaults = {
 		layout_strategy = "vertical",
 		layout_config = {
 			vertical = { width = 0.8 },
+		},
+		mappings = {
+			i = {
+				["<esc>"] = actions.close,
+			},
 		},
 	},
 })
@@ -91,13 +97,15 @@ return {
 			pattern,
 		}
 
-		pickers.new(opts, {
-			prompt_title = "search: " .. pattern,
-			prompt_prefix = "🔍",
-			finder = finders.new_oneshot_job(args, opts),
-			previewer = conf.grep_previewer(opts),
-			sorter = conf.generic_sorter(opts),
-		}):find()
+		pickers
+			.new(opts, {
+				prompt_title = "search: " .. pattern,
+				prompt_prefix = "🔍",
+				finder = finders.new_oneshot_job(args, opts),
+				previewer = conf.grep_previewer(opts),
+				sorter = conf.generic_sorter(opts),
+			})
+			:find()
 	end,
 	git_worktree = function()
 		builtin.find_files({

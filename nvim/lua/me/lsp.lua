@@ -92,7 +92,13 @@ require("lspconfig").sumneko_lua.setup({
 			},
 			diagnostics = {
 				-- Get the language server to recognize the `vim` global
-				globals = { "vim" },
+				globals = {
+					"vim",
+					"lualine_c_diagnostics_error_normal",
+					"lualine_c_diagnostics_warning_normal",
+					"lualine_c_diagnostics_info_normal",
+					"lualine_c_diagnostics_info_normal",
+				},
 			},
 			workspace = {
 				-- Make the server aware of Neovim runtime files
