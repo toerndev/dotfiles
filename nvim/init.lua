@@ -95,7 +95,8 @@ Plug("JoosepAlviste/nvim-ts-context-commentstring")
 Plug("tpope/vim-unimpaired")
 Plug("tpope/vim-surround")
 Plug("tpope/vim-fugitive")
-Plug("NTBBloodbath/rest.nvim")
+-- Plug("NTBBloodbath/rest.nvim") -- currently has a bug, POSTs JSON as form data
+Plug("teto/rest.nvim", { ["branch"] = "always-send-string" }) -- temporary replacement of the above
 
 vim.call("plug#end")
 -- } Plugins
