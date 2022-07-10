@@ -179,6 +179,9 @@ vim.diagnostic.config({
 })
 
 -- Navigation
+vim.api.nvim_set_keymap("n", "<C-p>", ":bprev<cr>", { noremap = true })
+vim.api.nvim_set_keymap("n", "<C-n>", ":bnext<cr>", { noremap = true })
+
 vim.api.nvim_set_keymap("n", "<Left>", "<<", { noremap = true })
 vim.api.nvim_set_keymap("n", "<Right>", ">>", { noremap = true })
 vim.api.nvim_set_keymap("v", "<Left>", "<gv", { noremap = true })

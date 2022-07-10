@@ -15,7 +15,7 @@ cmp.setup({
 		["<Tab>"] = cmp.mapping(function(fallback)
 			if cmp.visible() then
 				cmp.select_next_item()
-				-- elseif vim.fn["vsnip#available"](1) == 1 then
+				-- elseif TODO: handle snippets
 			elseif has_words_before() then
 				cmp.complete()
 			else
