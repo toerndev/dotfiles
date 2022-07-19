@@ -1,4 +1,5 @@
 -- LSP base configurations
+
 local lspcfg = {
 	capabilities = require("cmp_nvim_lsp").update_capabilities(vim.lsp.protocol.make_client_capabilities()),
 	on_attach = function(client, bufnr)

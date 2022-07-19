@@ -8,6 +8,7 @@ curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
 Package manager:
 - fd (fd-find), ripgrep
 - python-neovim, python2-neovim (fallback: `python -m pip install neovim`)
+- xclip (X11) or wl-clipboard (Wayland)
 
 npm i -g:
 - neovim
@@ -97,6 +98,7 @@ Plug("tpope/vim-surround")
 Plug("tpope/vim-fugitive")
 -- Plug("NTBBloodbath/rest.nvim") -- currently has a bug, POSTs JSON as form data
 Plug("teto/rest.nvim", { ["branch"] = "always-send-string" }) -- temporary replacement of the above
+Plug("chrisbra/unicode.vim")
 
 vim.call("plug#end")
 -- } Plugins
@@ -107,8 +109,14 @@ vim.opt.background = "dark"
 -- } Style
 
 -- Configuration: Telescope
+local telescope = require("me.telescope")
 vim.cmd("nnoremap <leader>f <cmd>Telescope find_files<cr>")
-vim.api.nvim_set_keymap("n", "<leader>Fc", ":lua require('me.telescope').search_config()<cr>", { noremap = true })
+vim.api.nvim_set_keymap("n", "<leader>C", "", {
+	noremap = true,
+	callback = function()
+		telescope.search_config()
+	end,
+})
 vim.api.nvim_set_keymap("n", "<leader>b", ":lua require('telescope.builtin').buffers()<cr>", { noremap = true })
 vim.api.nvim_set_keymap("n", "<leader>p", ":lua require('me.telescope').find_files_project()<cr>", { noremap = true })
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')

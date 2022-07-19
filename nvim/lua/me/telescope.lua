@@ -97,15 +97,13 @@ return {
 			pattern,
 		}
 
-		pickers
-			.new(opts, {
-				prompt_title = "search: " .. pattern,
-				prompt_prefix = "🔍",
-				finder = finders.new_oneshot_job(args, opts),
-				previewer = conf.grep_previewer(opts),
-				sorter = conf.generic_sorter(opts),
-			})
-			:find()
+		pickers.new(opts, {
+			prompt_title = "search: " .. pattern,
+			prompt_prefix = "🔍",
+			finder = finders.new_oneshot_job(args, opts),
+			previewer = conf.grep_previewer(opts),
+			sorter = conf.generic_sorter(opts),
+		}):find()
 	end,
 	git_worktree = function()
 		builtin.find_files({
