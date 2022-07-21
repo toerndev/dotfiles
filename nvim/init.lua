@@ -241,3 +241,6 @@ require("rest-nvim").setup({
 	custom_dynamic_variables = {},
 	yank_dry_run = true,
 })
+
+-- Snippets
+require("luasnip.loaders.from_snipmate").lazy_load()
