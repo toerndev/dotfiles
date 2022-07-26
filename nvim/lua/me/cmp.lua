@@ -25,6 +25,11 @@ cmp.setup({
 				fallback()
 			end
 		end, { "i", "s" }),
+		["<S-Tab>"] = cmp.mapping(function()
+			if cmp.visible() then
+				cmp.select_prev_item()
+			end
+		end),
 		["<cr>"] = cmp.mapping.confirm({
 			behavior = cmp.ConfirmBehavior.Replace,
 			select = true,
