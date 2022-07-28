@@ -1,0 +1,3 @@
+for f in *ovpn; do mv -v "$f" "$(echo $f | awk -F" - " '{print $2}')"; done
+for f in *ovpn; do mv -- "$f" "${f%.ovpn}.conf"; done
+sed -i '/^auth-nocache$/d' *
