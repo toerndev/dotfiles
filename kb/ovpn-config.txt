@@ -1,0 +1,10 @@
+# Rename FrootVPN config files (under /etc/openvpn/client)
+for f in *ovpn; do mv -v "$f" "$(echo $f | awk -F" - " '{print $2}')"; done
+for f in *ovpn; do mv -- "$f" "${f%.ovpn}.conf"; done
+
+# Remove auth-nocache to keep password in memory and avoid timeout after 60 minutes
+sed -i '/^auth-nocache$/d' *
+
+# Add `--any` in systemd-networkd-wait-online to avoid waiting for _all_ network interfaces:
+# sudo -e /usr/lib/systemd/system/systemd-networkd-wait-online.service
+# ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --any
