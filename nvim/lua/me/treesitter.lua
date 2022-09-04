@@ -1,5 +1,5 @@
 require("nvim-treesitter.configs").setup({
-	ensure_installed = { "http", "javascript", "json", "typescript" }, -- required by RestNvim
+	ensure_installed = { "http", "javascript", "json", "typescript", "svelte" },
 	highlight = {
 		enable = true,
 		disable = { "yaml" },

@@ -48,6 +48,12 @@ lsp.tsserver.setup({
 	handlers = lspcfg.handlers,
 })
 
+lsp.svelte.setup({
+	on_attach = function(client)
+		client.resolved_capabilities.document_formatting = false
+	end,
+})
+
 lsp.eslint.setup({
 	on_attach = lspcfg.on_attach,
 	handlers = lspcfg.handlers,
@@ -64,6 +70,19 @@ null_ls.setup({
 		null_ls.builtins.formatting.trim_whitespace,
 		null_ls.builtins.formatting.prettierd.with({
 			PRETTIERD_LOCAL_PRETTIER_ONLY = 1,
+			filetypes = {
+				"css",
+				"graphql",
+				"html",
+				"javascript",
+				"javascriptreact",
+				"json",
+				"markdown",
+				"svelte",
+				"typescript",
+				"typescriptreact",
+				"yaml",
+			},
 		}),
 		null_ls.builtins.formatting.stylua,
 	},
