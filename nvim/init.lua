@@ -211,6 +211,8 @@ vim.cmd("nnoremap <silent>gC <cmd>lua vim.lsp.buf.outgoing_calls()<cr>:copen<cr>
 vim.cmd("nnoremap <silent>gw <cmd>lua vim.lsp.buf.rename()<cr>")
 vim.cmd("nnoremap <silent>gf <cmd>lua vim.lsp.buf.formatting()<cr>")
 vim.cmd("nnoremap <silent>ga <cmd>lua vim.lsp.buf.code_action()<cr>")
+vim.cmd("nnoremap <C-h> <cmd>lua vim.lsp.buf.hover()<cr>")
+vim.cmd("nnoremap <C-i> <cmd>TSLspImportCurrent<cr>")
 
 vim.cmd("nnoremap <silent>rr <Plug>RestNvim<cr>")
 
