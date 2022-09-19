@@ -27,6 +27,8 @@ Font patching:
     fc-cache -fv
     gnome-tweaks to set global monospace font
 
+git:
+  - git config --global core.editor "nvim"
 ]]
 
 -- Paths {
