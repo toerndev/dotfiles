@@ -1,0 +1,2 @@
+#! /bin/sh
+_JAVA_AWT_WM_NONREPARENTING=1 /home/losipai/software/gowrite2_3_0_21/gowrite
