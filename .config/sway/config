@@ -4,7 +4,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && \
      dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK
 
 input * {
-  xkb_layout "se"
+  xkb_layout "losipai"
   xkb_options "caps:escape_shifted_capslock"
 }
 
@@ -69,7 +69,7 @@ exec swayidle -w \
     bindsym XF86MonBrightnessUp exec brightnessctl -q set +5%
 
     # Screenshot
-    bindsym Ctrl+Shift+$mod+p exec grimshot --notify save area
+    bindsym Ctrl+Shift+$mod+p exec XDG_SCREENSHOTS_DIR=$HOME/pictures/ grimshot --notify save area
 
 #
 # Moving around:

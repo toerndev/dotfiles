@@ -1,0 +1,2 @@
+sudo -e /usr/lib/systemd/system/getty\@.service
+TTYVTDisallocate=no
