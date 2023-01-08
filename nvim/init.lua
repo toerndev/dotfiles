@@ -14,6 +14,7 @@ npm i -g:
 - neovim
 - typescript-language-server
 - vscode-langservers-extracted
+- svelte-language-server
 - @fsouza/prettierd
 - typescript
 
