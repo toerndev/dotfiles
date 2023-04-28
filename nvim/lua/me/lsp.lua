@@ -1,10 +1,10 @@
 -- LSP base configurations
 
 local lspcfg = {
-  capabilities = require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities()),
-  on_attach = function(client, bufnr)
-    client.server_capabilities.document_formatting = false
-    client.server_capabilities.document_range_formatting = false
+	capabilities = require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities()),
+	on_attach = function(client, bufnr)
+		client.server_capabilities.document_formatting = false
+		client.server_capabilities.document_range_formatting = false
 
     vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
 
@@ -49,9 +49,9 @@ lsp.tsserver.setup({
 })
 
 lsp.svelte.setup({
-  on_attach = function(client)
-    client.server_capabilities.document_formatting = false
-  end,
+	on_attach = function(client)
+		client.server_capabilities.document_formatting = false
+	end,
 })
 
 lsp.eslint.setup({
@@ -62,33 +62,35 @@ lsp.eslint.setup({
 local null_ls = require("null-ls")
 local null_ls_utils = require("null-ls.utils")
 null_ls.setup({
-  debug = true,
-  -- debounce = 250,
-  sources = {
-    -- null_ls.builtins.diagnostics.eslint,
-    -- null_ls.builtins.code_actions.eslint,
-    null_ls.builtins.formatting.trim_whitespace,
-    null_ls.builtins.formatting.prettierd.with({
-      PRETTIERD_LOCAL_PRETTIER_ONLY = 1,
-      filetypes = {
-        "css",
-        "graphql",
-        "html",
-        "javascript",
-        "javascriptreact",
-        "json",
-        "markdown",
-        "svelte",
-        "typescript",
-        "typescriptreact",
-        "yaml",
-      },
-    }),
-    null_ls.builtins.formatting.stylua,
-  },
-  on_attach = function(client)
-    if client.server_capabilities.document_formatting then
-      vim.cmd([[
+	debug = true,
+	-- debounce = 250,
+	sources = {
+		null_ls.builtins.formatting.dprint.with({
+			filetypes = {
+				"css",
+				"graphql",
+				"graphqls",
+				"html",
+				"javascript",
+				"javascriptreact",
+				"json",
+				"markdown",
+				"svelte",
+				"toml",
+				"typescript",
+				"typescriptreact",
+				"yaml",
+				"yml",
+			},
+		}),
+		-- null_ls.builtins.diagnostics.eslint,
+		-- null_ls.builtins.code_actions.eslint,
+		null_ls.builtins.formatting.trim_whitespace,
+		null_ls.builtins.formatting.stylua,
+	},
+	on_attach = function(client)
+		if client.server_capabilities.document_formatting then
+			vim.cmd([[
         augroup LspFormatting
           autocmd! * <buffer>
           autocmd BufWritePre <buffer> lua vim.lsp.buf.format()
@@ -99,7 +101,7 @@ null_ls.setup({
   root_dir = null_ls_utils.root_pattern(".git"),
 })
 
-require("lspconfig").sumneko_lua.setup({
+require("lspconfig").lua_ls.setup({
   on_attach = function(client)
     client.server_capabilities.document_formatting = false
     client.server_capabilities.document_range_formatting = false
