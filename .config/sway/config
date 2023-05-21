@@ -70,6 +70,7 @@ exec swayidle -w \
 
     # Screenshot
     bindsym Ctrl+Shift+$mod+p exec XDG_SCREENSHOTS_DIR=$HOME/pictures/ grimshot --notify save area
+    bindsym Alt+Print exec XDG_SCREENSHOTS_DIR=$HOME/pictures/ grimshot --notify save area
 
 #
 # Moving around:
