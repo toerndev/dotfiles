@@ -3,31 +3,16 @@
     // "layer": "top", // Waybar at top layer
     "position": "bottom", // Waybar position (top|bottom|left|right)
     //"height": 30, // Waybar height (to be removed for auto height)
-    "height": 22, // Waybar height (to be removed for auto height)
+    "height": 24,
     // "width": 1280, // Waybar width
     // Choose the order of the modules
-    "modules-left": ["sway/workspaces", "sway/mode"],
-    //"modules-center": ["sway/window"],
+    "modules-left": ["wlr/workspaces", "wlr/mode"],
+    //"modules-center": ["wlr/window"],
     //"modules-right": ["mpd", "idle_inhibitor", "pulseaudio", "network", "cpu", "memory", "temperature", "backlight", "battery", "battery#bat2", "clock", "tray"],
     "modules-right": ["idle_inhibitor", "pulseaudio", "network", "cpu", "memory", "battery", "clock", "tray"],
-    // Modules configuration
-    // "sway/workspaces": {
-    //     "disable-scroll": true,
-    //     "all-outputs": true,
-    //     "format": "{name}: {icon}",
-    //     "format-icons": {
-    //         "1": "",
-    //         "2": "",
-    //         "3": "",
-    //         "4": "",
-    //         "5": "",
-    //         "urgent": "",
-    //         "focused": "",
-    //         "default": ""
-    //     }
-    // },
-    "sway/workspaces": {
+    "wlr/workspaces": {
         "disable-scroll": true,
+        "active-only": false,
         "all-outputs": true,
         //"format": "{name}: {icon}",
         "format": "{icon}",
@@ -47,7 +32,7 @@
             "default": ""
         }
     },
-    "sway/mode": {
+    "wlr/mode": {
         "format": "<span style=\"italic\">{}</span>"
     },
     "mpd": {

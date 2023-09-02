@@ -24,7 +24,7 @@ set $right l
 set $term footclient
 
 # Application launcher
-set $menu footclient --app-id=launcher bash -c 'compgen -c | sort -u | fzf --no-extended --reverse --border=sharp --color=16 --print-query | tail -1 | xargs -r swaymsg -t command exec'
+set $menu footclient --app-id=launcher bash -c 'compgen -c | sort -u | fzf --no-extended --reverse --border=sharp --color=16 --print-query | tail -1 | xargs -r exec'
 for_window [app_id="^launcher$"] floating enable, border none, opacity 0.8
 
 ### Output configuration
@@ -58,7 +58,7 @@ exec swayidle -w \
 
     bindsym $mod+Shift+r reload
     bindsym $mod+Shift+q exec swaynag -t warning -m 'Exit sway? This ends your Wayland session.' -b 'Yes' 'swaymsg exit'
-    bindsym $mod+p exec 'swaylock -f -c 000000'
+    bindsym $mod+p exec 'swaylock --screenshots --effect-blur 7x5 --effect-vignette 0.2:0.2 --indicator --indicator-radius 100 --indicator-thickness 12 --clock --ring-color 00cccc --inside-color 00000088 --separator-color 00000000 --grace 2 --fade-in 0.3'
 
     # Volume
     bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5%
