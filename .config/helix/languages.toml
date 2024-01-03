@@ -1,5 +1,12 @@
-[language-server]
-emmet-ls = { command = "emmet-ls", args = [ "--stdio" ]}
+[language-server.scls]
+command = "simple-completion-language-server"
+
+[language-server.scls.config]
+max_completion_items = 5
+snippets_first = true
+feature_words = true
+feature_snippets = true
+feature_unicode_input = true
 
 [language-server.eslint]
 command = "vscode-eslint-language-server"
@@ -33,25 +40,25 @@ provideFormatter = true
 
 [[language]]
 name = "typescript"
-language-servers = [ "typescript-language-server", "eslint", "emmet-ls" ]
+language-servers = [ "scls", "typescript-language-server", "eslint" ]
 formatter = { command = "dprint", args = [ "fmt", "--stdin", "ts" ] }
 auto-format = true
 
 [[language]]
 name = "tsx"
-language-servers = [ "typescript-language-server", "eslint", "emmet-ls" ]
+language-servers = [ "scls", "typescript-language-server", "eslint" ]
 formatter = { command = "dprint", args = [ "fmt", "--stdin", "tsx" ] }
 auto-format = true
 
 [[language]]
 name = "javascript"
-language-servers = [ "typescript-language-server", "eslint", "emmet-ls" ]
+language-servers = [ "scls", "typescript-language-server", "eslint" ]
 formatter = { command = "dprint", args = [ "fmt", "--stdin", "javascript" ] }
 auto-format = true
 
 [[language]]
 name = "jsx"
-language-servers = [ "typescript-language-server", "eslint", "emmet-ls" ]
+language-servers = [ "scls", "typescript-language-server", "eslint"  ]
 formatter = { command = "dprint", args = [ "fmt", "--stdin", "jsx" ] }
 auto-format = true
 
@@ -60,14 +67,23 @@ name = "json"
 formatter = { command = "dprint", args = [ "fmt", "--stdin", "json" ] }
 auto-format = true
 
-# [[language]]
-# name = "html"
-# language-servers = [ "vscode-html-language-server", "emmet-ls" ]
-# formatter = { command = 'prettierd', args = ["--parser", "html"] }
-# auto-format = true
+[[language]]
+name = "html"
+language-servers = [ "vscode-html-language-server" ]
+formatter = { command = 'prettierd', args = ["--parser", "html"] }
+auto-format = false
 
 [[language]]
 name = "css"
-language-servers = [ "vscode-css-language-server", "emmet-ls" ]
+language-servers = [ "vscode-css-language-server" ]
 formatter = { command = 'prettierd', args = ["--parser", "css"] }
 auto-format = true
+
+[[language]]
+name = "stub"
+scope = "text.stub"
+file-types = []
+shebangs = []
+roots = []
+auto-format = false
+language-servers = [ "scls" ]

@@ -1,0 +1,12 @@
+[[snippets]]
+prefix = "dragon"
+body = "🐉"
+
+[[snippets]]
+prefix = "poop"
+body = "💩"
+
+[[snippets]]
+prefix = "cl"
+# scope = [ "typescript", "tsx", "javascript" ]
+body = 'console.log({ $1 })'
