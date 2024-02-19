@@ -15,7 +15,4 @@ require("nvim-treesitter.configs").setup({
 	},
 	-- indentation problems with multiple languages, turn off
 	indent = { enable = false },
-	context_commentstring = {
-		enable = true,
-	},
 })

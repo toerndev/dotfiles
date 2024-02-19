@@ -77,9 +77,9 @@ Plug("nvim-telescope/telescope-file-browser.nvim")
 
 -- Plugins: LSP + completion
 Plug("nvim-treesitter/nvim-treesitter", {
-  ["do"] = function()
-    vim.call(":TSUpdate")
-  end,
+	["do"] = function()
+		vim.call(":TSUpdate")
+	end,
 })
 Plug("hrsh7th/cmp-nvim-lsp")
 Plug("hrsh7th/cmp-buffer")
@@ -113,19 +113,19 @@ vim.opt.background = "dark"
 local telescope = require("me.telescope")
 vim.cmd("nnoremap <leader>f <cmd>Telescope find_files<cr>")
 vim.api.nvim_set_keymap("n", "<leader>C", "", {
-  noremap = true,
-  callback = function()
-    telescope.search_config()
-  end,
+	noremap = true,
+	callback = function()
+		telescope.search_config()
+	end,
 })
 vim.api.nvim_set_keymap("n", "<leader>b", ":lua require('telescope.builtin').buffers()<cr>", { noremap = true })
 vim.api.nvim_set_keymap("n", "<leader>p", ":lua require('me.telescope').find_files_project()<cr>", { noremap = true })
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')
 vim.api.nvim_set_keymap(
-  "n",
-  "<leader>/",
-  ":lua require('me.telescope').grep_pattern(vim.fn.input('Grep for > '))<cr>",
-  { noremap = true }
+	"n",
+	"<leader>/",
+	":lua require('me.telescope').grep_pattern(vim.fn.input('Grep for > '))<cr>",
+	{ noremap = true }
 )
 --[[
 nnoremap <leader>f* :lua require('me.telescope').grep_cword()<cr>
@@ -175,18 +175,18 @@ vim.cmd("nnoremap <silent>gl	<cmd>lua vim.diagnostic.setloclist()<cr>")
 vim.cmd("nnoremap <silent>gq	<cmd>lua vim.diagnostic.setqflist()<cr>")
 vim.cmd("nnoremap <silent>L	<cmd>lua vim.diagnostic.open_float({ source = always })<cr>")
 vim.diagnostic.config({
-  float = {
-    format = function(diagnostic)
-      return string.format(
-        "%s [%s]",
-        diagnostic.message,
-        diagnostic.source == "eslint" and diagnostic.user_data.lsp.code or diagnostic.source
-      )
-    end,
-    severity_sort = true,
-    close_events = { "BufLeave", "CursorMoved", "InsertEnter", "FocusLost" },
-    max_width = 80,
-  },
+	float = {
+		format = function(diagnostic)
+			return string.format(
+				"%s [%s]",
+				diagnostic.message,
+				diagnostic.source == "eslint" and diagnostic.user_data.lsp.code or diagnostic.source
+			)
+		end,
+		severity_sort = true,
+		close_events = { "BufLeave", "CursorMoved", "InsertEnter", "FocusLost" },
+		max_width = 80,
+	},
 })
 
 -- Navigation
