@@ -1,5 +1,15 @@
 -- LSP base configurations
 
+local attach_format_on_save = function(client, bufnr)
+   if client.server_capabilities.documentFormattingProvider then
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      group = vim.api.nvim_create_augroup("Format", { clear = true }),
+      buffer = bufnr,
+      callback = function() vim.lsp.buf.format({ async = false }) end
+    })
+  end
+end
+
 local lspcfg = {
 	capabilities = require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities()),
 	on_attach = function(client, bufnr)
@@ -15,6 +25,8 @@ local lspcfg = {
 		vim.api.nvim_buf_set_keymap(bufnr, "n", "gs", ":TSLspOrganize<cr>", { noremap = true })
 		vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", ":TSLspRenameFile<cr>", { noremap = true })
 		vim.api.nvim_buf_set_keymap(bufnr, "n", "gm", ":TSLspImportAll<cr>", { noremap = true })
+
+    attach_format_on_save(client, bufnr)
 	end,
 	handlers = {
 		["textDocument/publishDiagnostics"] = vim.lsp.with(
@@ -41,12 +53,14 @@ lsp.tsserver.setup({
 	on_attach = lspcfg.on_attach,
 	cmd = {
 		"typescript-language-server",
-		"--tsserver-path",
+		-- "--tsserver-path",
 		tsserver_path,
 		"--stdio",
 	},
 	handlers = lspcfg.handlers,
 })
+
+lsp.biome.setup({})
 
 lsp.svelte.setup({
 	on_attach = function(client)
@@ -59,57 +73,7 @@ lsp.eslint.setup({
 	handlers = lspcfg.handlers,
 })
 
-local null_ls = require("null-ls")
-local null_ls_utils = require("null-ls.utils")
-local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
-null_ls.setup({
-	debug = true,
-	-- debounce = 250,
-	sources = {
-		null_ls.builtins.formatting.dprint.with({
-			filetypes = {
-				"css",
-				"graphql",
-				"graphqls",
-				"html",
-				"javascript",
-				"javascriptreact",
-				-- "json",
-				"markdown",
-				-- "svelte",
-				"toml",
-				"typescript",
-				"typescriptreact",
-				"yaml",
-			},
-		}),
-		null_ls.builtins.formatting.prettierd.with({
-			PRETTIERD_LOCAL_PRETTIER_ONLY = 1,
-			filetypes = {
-				"svelte",
-			},
-		}),
-		-- null_ls.builtins.diagnostics.eslint,
-		-- null_ls.builtins.code_actions.eslint,
-		null_ls.builtins.formatting.trim_whitespace,
-		null_ls.builtins.formatting.stylua,
-	},
-	on_attach = function(client, bufnr)
-		if client.supports_method("textDocument/formatting") then
-			vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-			vim.api.nvim_create_autocmd("BufWritePre", {
-				group = augroup,
-				buffer = bufnr,
-				callback = function()
-					vim.lsp.buf.format({ bufnr = bufnr })
-				end,
-			})
-		end
-	end,
-	root_dir = null_ls_utils.root_pattern(".git"),
-})
-
-require("lspconfig").lua_ls.setup({
+lsp.lua_ls.setup({
 	on_attach = function(client)
 		client.server_capabilities.document_formatting = false
 		client.server_capabilities.document_range_formatting = false

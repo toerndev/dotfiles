@@ -109,6 +109,9 @@ vim.cmd("colorscheme gruvbox")
 vim.opt.background = "dark"
 -- } Style
 
+-- Use mouse selection to copy to clipboard
+vim.opt.mouse = "h"
+
 -- Configuration: Telescope
 local telescope = require("me.telescope")
 vim.cmd("nnoremap <leader>f <cmd>Telescope find_files<cr>")
@@ -127,6 +130,7 @@ vim.api.nvim_set_keymap(
 	":lua require('me.telescope').grep_pattern(vim.fn.input('Grep for > '))<cr>",
 	{ noremap = true }
 )
+
 --[[
 nnoremap <leader>f* :lua require('me.telescope').grep_cword()<cr>
 nnoremap <leader>fw :lua require('me.telescope').git_worktree()<cr>
