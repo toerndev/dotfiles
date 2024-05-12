@@ -6,11 +6,11 @@
     "height": 24,
     // "width": 1280, // Waybar width
     // Choose the order of the modules
-    "modules-left": ["wlr/workspaces", "wlr/mode"],
-    //"modules-center": ["wlr/window"],
+    "modules-left": ["hyprland/workspaces", "hyprland/mode"],
+    //"modules-center": ["hyprland/window"],
     //"modules-right": ["mpd", "idle_inhibitor", "pulseaudio", "network", "cpu", "memory", "temperature", "backlight", "battery", "battery#bat2", "clock", "tray"],
     "modules-right": ["idle_inhibitor", "pulseaudio", "network", "cpu", "memory", "battery", "clock", "tray"],
-    "wlr/workspaces": {
+    "hyprland/workspaces": {
         "disable-scroll": true,
         "active-only": false,
         "all-outputs": true,
@@ -32,7 +32,7 @@
             "default": ""
         }
     },
-    "wlr/mode": {
+    "hyprland/mode": {
         "format": "<span style=\"italic\">{}</span>"
     },
     "mpd": {

@@ -2,7 +2,7 @@ profile external {
 	output eDP-1 disable
 	output HDMI-A-1 mode 2560x1440@144.001Hz position 0,0
 	# output HDMI-A-1 mode 1920x1080@60Hz
-  exec swaymsg workspace 1, move workspace to HDMI-A-1
+  exec hyprctl dispatch movetoworkspace "1,HDMI-A-1"
 }
 
 profile {
