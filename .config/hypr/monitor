@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+mode=$1
+
+if [[ "$1" == "ext" ]]; then
+  hyprctl keyword monitor HDMI-A-1,preferred,0x0,1
+  hyprctl keyword monitor eDP-1,disable
+elif [[ "$1" == "stack" ]]; then
+  hyprctl keyword monitor HDMI-A-1,preferred,0x0,1
+  hyprctl keyword monitor eDP-1,preferred,auto-down,1
+elif [[ "$1" == "mirror" ]]; then
+  hyprctl keyword monitor eDP-1,preferred,0x0,1
+  hyprctl keyword monitor HDMI-A-1,preferred,auto,1,mirror,eDP-1
+elif [[ "$1" == "mirror_fhd" ]]; then
+  hyprctl keyword monitor eDP-1,1920x1080@120,0x0,1
+  hyprctl keyword monitor HDMI-A-1,1920x1080,0x0,1,mirror,eDP-1
+fi
