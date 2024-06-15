@@ -16,4 +16,10 @@ elif [[ "$1" == "mirror" ]]; then
 elif [[ "$1" == "mirror_fhd" ]]; then
   hyprctl keyword monitor eDP-1,1920x1080@120,0x0,1
   hyprctl keyword monitor HDMI-A-1,1920x1080,0x0,1,mirror,eDP-1
+elif [[ "$1" == "boot" ]]; then
+  if hyprctl monitors | grep -q "HDMI-A-1"; then
+    monitor ext
+  else
+    monitor laptop
+  fi
 fi
