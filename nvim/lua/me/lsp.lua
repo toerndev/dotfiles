@@ -73,6 +73,66 @@ lsp.eslint.setup({
 	handlers = lspcfg.handlers,
 })
 
+lsp.yamlls.setup({
+  on_attach = function(client)
+    client.server_capabilities.document_formatting = true
+		client.server_capabilities.document_range_formatting = true
+  end,
+  capabilities = vim.lsp.protocol.make_client_capabilities(),
+  format = {
+    enable = true,
+    singleQuote = true,
+  },
+  validate = true,
+  completion = true,
+  schemaStore = { enable = true, url = "https://www.schemastore.org/api/json/catalog.json" },
+  settings = {
+    yaml = {
+      customTags = {
+        "!fn",
+        "!And",
+        "!If",
+        "!Not",
+        "!Equals",
+        "!Or",
+        "!FindInMap sequence",
+        "!Base64",
+        "!Cidr",
+        "!Ref",
+        "!Ref Scalar",
+        "!Sub",
+        "!GetAtt",
+        "!GetAZs",
+        "!ImportValue",
+        "!Select",
+        "!Split",
+        "!Join sequence",
+      }
+    }
+  },
+  flags = {
+    debouce_text_changes = 200
+  }
+})
+
+lsp.jsonls.setup({
+  settings = {
+    json = {
+      schemas = require('schemastore').json.schemas {
+        {
+          description = 'AWS CloudFormation provides a common language for you to describe and provision all the infrastructure resources in your cloud environment.',
+          fileMatch = {
+            '*.cf.json',
+          },
+          -- url = 'https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json'
+          url = 'https://d3teyb21fexa9r.cloudfront.net/latest/gzip/CloudFormationResourceSpecification.json'
+        },
+      },
+      validate = { enable = false }
+    }
+  }
+})
+
 lsp.lua_ls.setup({
 	on_attach = function(client)
 		client.server_capabilities.document_formatting = false
@@ -106,4 +166,54 @@ lsp.lua_ls.setup({
 			},
 		},
 	},
+})
+
+
+local null_ls = require("null-ls")
+local null_helpers = require('null-ls.helpers')
+
+local cfn_lint = ({
+  method = null_ls.methods.DIAGNOSTICS,
+  filetypes = {'yaml'},
+  generator = null_helpers.generator_factory({
+    command = "cfn-lint",
+    to_stdin = true,
+    to_stderr = true,
+    args = { "--format", "parseable", "-" },
+    format = "line",
+    check_exit_code = function(code)
+      return code == 0 or code == 255
+    end,
+    on_output = function(line, params)
+      local row, col, end_row, end_col, code, message = line:match(":(%d+):(%d+):(%d+):(%d+):(.*):(.*)")
+      local severity = null_helpers.diagnostics.severities['error']
+
+      if message == nil then
+        return nil
+      end
+
+      if vim.startswith(code, "E") then
+        severity = null_helpers.diagnostics.severities['error']
+      elseif vim.startswith(code, "W") then
+        severity = null_helpers.diagnostics.severities['warning']
+      else
+        severity = null_helpers.diagnostics.severities['information']
+      end
+
+      return {
+        message = message,
+        code = code,
+        row = row,
+        col = col,
+        end_col = end_col,
+        end_row = end_row,
+        severity = severity,
+        source = "cfn-lint",
+      }
+    end,
+  })
+})
+
+null_ls.setup({
+  sources =  { null_ls.builtins.diagnostics.cfn_lint }
 })

@@ -15,7 +15,8 @@ npm i -g:
 - typescript-language-server
 - vscode-langservers-extracted
 - svelte-language-server
-- @fsouza/prettierd
+- yaml-language-server
+- (@fsouza/prettierd / biome / dprint)
 - typescript
 
 lua:
@@ -92,6 +93,7 @@ Plug("L3MON4D3/LuaSnip")
 Plug("saadparwaiz1/cmp_luasnip")
 Plug("jose-elias-alvarez/null-ls.nvim")
 Plug("jose-elias-alvarez/nvim-lsp-ts-utils")
+Plug("b0o/SchemaStore.nvim")
 
 -- Plugins: generic coding
 Plug("tpope/vim-commentary")
