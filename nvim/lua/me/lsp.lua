@@ -18,13 +18,12 @@ local lspcfg = {
 
 		vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
 
-		local ts_utils = require("nvim-lsp-ts-utils")
+		local ts_utils = require("typescript-tools")
 		ts_utils.setup({})
-		ts_utils.setup_client(client)
 
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gs", ":TSLspOrganize<cr>", { noremap = true })
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", ":TSLspRenameFile<cr>", { noremap = true })
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gm", ":TSLspImportAll<cr>", { noremap = true })
+		vim.api.nvim_buf_set_keymap(bufnr, "n", "gs", ":TSToolsOrganizeImports<cr>", { noremap = true })
+		vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", ":TSToolsRenameFile<cr>", { noremap = true })
+		vim.api.nvim_buf_set_keymap(bufnr, "n", "gm", ":TSToolsAddMissingImports<cr>", { noremap = true })
 
     attach_format_on_save(client, bufnr)
 	end,

@@ -92,7 +92,7 @@ Plug("neovim/nvim-lspconfig")
 Plug("L3MON4D3/LuaSnip")
 Plug("saadparwaiz1/cmp_luasnip")
 Plug("jose-elias-alvarez/null-ls.nvim")
-Plug("jose-elias-alvarez/nvim-lsp-ts-utils")
+Plug("pmizio/typescript-tools.nvim")
 Plug("b0o/SchemaStore.nvim")
 
 -- Plugins: generic coding
