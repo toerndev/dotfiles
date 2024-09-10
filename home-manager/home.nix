@@ -2,7 +2,9 @@
 {
   home = {
     packages = with pkgs; [
-      hello
+      bat
+      btop
+      eza
     ];
 
     username = "martint";
