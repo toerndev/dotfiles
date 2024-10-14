@@ -47,7 +47,7 @@ else
 	tsserver_path = "tsserver"
 end
 
-lsp.tsserver.setup({
+lsp.ts_ls.setup({
 	capabilities = lspcfg.capabilities,
 	on_attach = lspcfg.on_attach,
 	cmd = {
