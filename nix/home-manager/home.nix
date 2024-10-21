@@ -18,13 +18,9 @@
     pkgs.glow
     pkgs.hyprpaper
     pkgs.pavucontrol
-    pkgs.pavucontrol
     pkgs.python312Packages.cfn-lint
     pkgs.ripgrep
-    pkgs.ripgrep
     pkgs.rustup
-    pkgs.rustup
-    pkgs.tree
     pkgs.tree
     pkgs.up
     (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
