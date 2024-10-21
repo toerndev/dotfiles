@@ -3,20 +3,30 @@
 {
   home.username = "martint";
   home.homeDirectory = "/home/martint";
+  nixpkgs.config.allowUnfree = true;
 
   home.stateVersion = "24.05";
 
   home.packages = [
+    pkgs.awscli2
     pkgs.bat
     pkgs.btop
     pkgs.evince
     pkgs.eza
     pkgs.fd
     pkgs.feh
+    pkgs.glow
+    pkgs.hyprpaper
     pkgs.pavucontrol
+    pkgs.pavucontrol
+    pkgs.python312Packages.cfn-lint
+    pkgs.ripgrep
     pkgs.ripgrep
     pkgs.rustup
+    pkgs.rustup
     pkgs.tree
+    pkgs.tree
+    pkgs.up
     (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
     (pkgs.writeShellScriptBin "my-hello" ''
       echo "Hello, ${config.home.username}!"
@@ -52,8 +62,8 @@ AGKOZAK_PROMPT_CHAR=( ❯ ❯ ❮ )
 
 export N_PREFIX="$HOME/n"
 [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"
-if [ -e '$HOME/.tokens' ]; then
-  . $HOME/.tokens
+if [ -e '$HOME/.env' ]; then
+  . $HOME/.env
 fi
 '';
     plugins = with pkgs; [
@@ -106,93 +116,5 @@ fi
   programs.foot = {
     enable = true; 
     server.enable = true;
-  };
-
-  wayland.windowManager.hyprland = {
-    enable = true;
-    xwayland.enable = true;
-    systemd.enable = true;
-    extraConfig = ''
-
-exec = foot --server
-$terminal = foot
-$mainMod = SUPER
-input {
-  kb_layout = losipai
-  kb_options = caps:escape_shifted_capslock
-  follow_mouse = 1
-}
-misc {
-  force_default_wallpaper = 1
-  disable_hyprland_logo = false
-}
-bind = $mainMod, Return, exec, kitty,
-bind = ALT, Return, exec, kitty,
-bind = $mainMod SHIFT, Return, exec, kitty,
-bind = $mainMod, T, exec, footclient,
-bind = $mainMod SHIFT, C, killactive,
-bind = $mainMod SHIFT, Q, exit,
-bind = $mainMod, F, fullscreen
-bind = $mainMod, V, togglefloating,
-bind = $mainMod, P, pseudo, # dwindle
-bind = $mainMod, J, togglesplit, # dwindle
-bind = $mainMod, R, exec, footclient --title=launcher bash -c 'compgen -c | sort -u | fzf --no-extended --reverse --border=sharp --color=16 --print-query | tail -1 | xargs -0 -r hyprctl dispatch exec'
-
-# Move focus with mainMod + arrow keys
-bind = $mainMod, left, movefocus, l
-bind = $mainMod, right, movefocus, r
-bind = $mainMod, up, movefocus, u
-bind = $mainMod, down, movefocus, d
-
-# Move tiles with mainMod SHIFT + arrow keys
-bind = $mainMod SHIFT, left, movewindow, l
-bind = $mainMod SHIFT, right, movewindow, r
-bind = $mainMod SHIFT, up, movewindow, u
-bind = $mainMod SHIFT, down, movewindow, d
-
-# Switch workspaces with mainMod + [0-9]
-bind = $mainMod, 1, workspace, 1
-bind = $mainMod, 2, workspace, 2
-bind = $mainMod, 3, workspace, 3
-bind = $mainMod, 4, workspace, 4
-bind = $mainMod, 5, workspace, 5
-bind = $mainMod, 6, workspace, 6
-bind = $mainMod, 7, workspace, 7
-bind = $mainMod, 8, workspace, 8
-bind = $mainMod, 9, workspace, 9
-bind = $mainMod, 0, workspace, 10
-
-# Move active window to a workspace with mainMod + SHIFT + [0-9]
-bind = $mainMod SHIFT, 1, movetoworkspace, 1
-bind = $mainMod SHIFT, 2, movetoworkspace, 2
-bind = $mainMod SHIFT, 3, movetoworkspace, 3
-bind = $mainMod SHIFT, 4, movetoworkspace, 4
-bind = $mainMod SHIFT, 5, movetoworkspace, 5
-bind = $mainMod SHIFT, 6, movetoworkspace, 6
-bind = $mainMod SHIFT, 7, movetoworkspace, 7
-bind = $mainMod SHIFT, 8, movetoworkspace, 8
-bind = $mainMod SHIFT, 9, movetoworkspace, 9
-bind = $mainMod SHIFT, 0, movetoworkspace, 10
-
-# Example special workspace (scratchpad)
-bind = $mainMod, S, togglespecialworkspace, magic
-bind = $mainMod SHIFT, S, movetoworkspace, special:magic
-
-# Scroll through existing workspaces with mainMod + scroll
-bind = $mainMod, mouse_down, workspace, e+1
-bind = $mainMod, mouse_up, workspace, e-1
-
-# Move/resize windows with mainMod + LMB/RMB and dragging
-bindm = $mainMod, mouse:272, movewindow
-bindm = $mainMod, mouse:273, resizewindow
-
-
-bindel = ,XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
-bindel = ,XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
-bindl = ,XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
-bindl = ,XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
-bindel = ,XF86MonBrightnessDown, exec, brightnessctl -q set 5%-
-bindel = ,XF86MonBrightnessUp, exec, brightnessctl -q set +5%
-      '';
   };
 }
