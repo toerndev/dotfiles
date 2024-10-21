@@ -60,6 +60,9 @@ AGKOZAK_CUSTOM_SYMBOLS=( '⇣⇡' '⇣' '⇡' '+' 'x' '!' '>' '?' )
 AGKOZAK_MULTILINE=0
 AGKOZAK_PROMPT_CHAR=( ❯ ❯ ❮ )
 
+# git: don't paginate if less than a page
+export LESS="-F -X $LESS"
+
 export N_PREFIX="$HOME/n"
 [[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"
 if [ -e '$HOME/.env' ]; then
