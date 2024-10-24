@@ -16,11 +16,14 @@
     pkgs.fd
     pkgs.feh
     pkgs.glow
+    pkgs.grim
     pkgs.hyprpaper
     pkgs.pavucontrol
     pkgs.python312Packages.cfn-lint
     pkgs.ripgrep
     pkgs.rustup
+    pkgs.slurp
+    pkgs.swappy
     pkgs.tree
     pkgs.up
     (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
