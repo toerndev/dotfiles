@@ -51,6 +51,11 @@
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
   . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 fi
+
+if [ -e '$HOME/.tokens' ]; then
+  . '$HOME/.tokens'
+fi
+
 bindkey '^ ' autosuggest-accept
 AGKOZAK_CMD_EXEC_TIME=5
 AGKOZAK_COLORS_CMD_EXEC_TIME='yellow'
