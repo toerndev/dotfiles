@@ -68,7 +68,7 @@ AGKOZAK_PROMPT_CHAR=( ❯ ❯ ❮ )
 export LESS="-F -X $LESS"
 
 export N_PREFIX="$HOME/n"
-[[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH+=":$N_PREFIX/bin"
+[[ :$PATH: == *":$N_PREFIX/bin:"* ]] || PATH="$N_PREFIX/bin:$PATH"
 if [ -e '$HOME/.env' ]; then
   . $HOME/.env
 fi
