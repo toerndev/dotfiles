@@ -126,11 +126,27 @@ vim.api.nvim_set_keymap("n", "<leader>C", "", {
 vim.api.nvim_set_keymap("n", "<leader>b", ":lua require('telescope.builtin').buffers()<cr>", { noremap = true })
 vim.api.nvim_set_keymap("n", "<leader>p", ":lua require('me.telescope').find_files_project()<cr>", { noremap = true })
 -- vim.cmd('nnoremap <leader>f/ <cmd>Telescope grep_pattern<cr>')
+function _G.custom_live_grep()
+  require('telescope.builtin').live_grep({
+    default_text = vim.fn.input('Grep for > '),
+    additional_args = function(args)
+      table.insert(args, '--glob')
+      table.insert(args, '!.git/**')
+      table.insert(args, '--glob')
+      table.insert(args, '!**/yarn.lock')
+      table.insert(args, '--glob')
+      table.insert(args, '!**/*.pem')
+      table.insert(args, '--glob')
+      table.insert(args, '!**/*.excalidrawlib')
+      return args
+    end
+  })
+end
 vim.api.nvim_set_keymap(
 	"n",
 	"<leader>/",
-	":lua require('me.telescope').grep_pattern(vim.fn.input('Grep for > '))<cr>",
-	{ noremap = true }
+  ":lua _G.custom_live_grep()<CR>",
+  { noremap = true }
 )
 
 --[[
