@@ -103,6 +103,17 @@ Plug("tpope/vim-surround")
 Plug("tpope/vim-fugitive")
 Plug("chrisbra/unicode.vim")
 
+-- Plugins: Avante
+Plug 'MunifTanjim/nui.nvim'
+Plug 'MeanderingProgrammer/render-markdown.nvim'
+Plug 'nvim-tree/nvim-web-devicons'
+Plug 'zbirenbaum/copilot.lua'
+Plug 'stevearc/dressing.nvim'
+Plug 'folke/snacks.nvim'
+vim.cmd [[
+  Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
+]]
+
 vim.call("plug#end")
 -- } Plugins
 
@@ -244,3 +255,18 @@ require("me.treesitter")
 
 -- Snippets
 require("luasnip.loaders.from_snipmate").lazy_load()
+
+-- Avante
+vim.api.nvim_create_autocmd("User", {
+  pattern = "avante.nvim",
+  callback = function()
+    require('avante').setup()
+  end
+})
+
+-- Render Markdown
+require('render-markdown').setup({
+  enabled = false
+})
+vim.keymap.set('n', '<leader>m', '<cmd>RenderMarkdown toggle<cr>', { desc = 'Toggle Render Markdown' })
+
