@@ -140,16 +140,13 @@ vim.api.nvim_set_keymap("n", "<leader>p", ":lua require('me.telescope').find_fil
 function _G.custom_live_grep()
   require('telescope.builtin').live_grep({
     default_text = vim.fn.input('Grep for > '),
-    additional_args = function(args)
-      table.insert(args, '--glob')
-      table.insert(args, '!.git/**')
-      table.insert(args, '--glob')
-      table.insert(args, '!**/yarn.lock')
-      table.insert(args, '--glob')
-      table.insert(args, '!**/*.pem')
-      table.insert(args, '--glob')
-      table.insert(args, '!**/*.excalidrawlib')
-      return args
+    additional_args = function()
+      return {
+        '--glob', '!.git/**',
+        '--glob', '!**/yarn.lock',
+        '--glob', '!**/*.pem',
+        '--glob', '!**/*.excalidrawlib'
+      }
     end
   })
 end
