@@ -92,7 +92,6 @@ Plug("neovim/nvim-lspconfig")
 Plug("L3MON4D3/LuaSnip")
 Plug("saadparwaiz1/cmp_luasnip")
 Plug("nvimtools/none-ls.nvim")
-Plug("pmizio/typescript-tools.nvim")
 Plug("b0o/SchemaStore.nvim")
 
 -- Plugins: generic coding
@@ -243,7 +242,6 @@ vim.cmd("nnoremap <silent>gw <cmd>lua vim.lsp.buf.rename()<cr>")
 vim.cmd("nnoremap <silent>gf <cmd>lua vim.lsp.buf.format()<cr>")
 vim.cmd("nnoremap <silent>ga <cmd>lua vim.lsp.buf.code_action()<cr>")
 vim.cmd("nnoremap <C-h> <cmd>lua vim.lsp.buf.hover()<cr>")
-vim.cmd("nnoremap <C-i> <cmd>TSLspImportCurrent<cr>")
 vim.cmd("vnoremap s :sort<cr>")
 
 vim.cmd("nnoremap <silent>rr <Plug>RestNvim<cr>")

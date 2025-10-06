@@ -1,31 +1,9 @@
 -- LSP base configurations
 
-local attach_format_on_save = function(client, bufnr)
-   if client.server_capabilities.documentFormattingProvider then
-    vim.api.nvim_create_autocmd("BufWritePre", {
-      group = vim.api.nvim_create_augroup("Format", { clear = true }),
-      buffer = bufnr,
-      callback = function() vim.lsp.buf.format({ async = false }) end
-    })
-  end
-end
-
 local lspcfg = {
 	capabilities = require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities()),
 	on_attach = function(client, bufnr)
-		client.server_capabilities.document_formatting = false
-		client.server_capabilities.document_range_formatting = false
-
 		vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
-
-		local ts_utils = require("typescript-tools")
-		ts_utils.setup({})
-
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gs", ":TSToolsOrganizeImports<cr>", { noremap = true })
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gn", ":TSToolsRenameFile<cr>", { noremap = true })
-		vim.api.nvim_buf_set_keymap(bufnr, "n", "gm", ":TSToolsAddMissingImports<cr>", { noremap = true })
-
-    attach_format_on_save(client, bufnr)
 	end,
 	handlers = {
 		["textDocument/publishDiagnostics"] = vim.lsp.with(
@@ -59,7 +37,55 @@ lsp.ts_ls.setup({
 	handlers = lspcfg.handlers,
 })
 
-lsp.biome.setup({})
+lsp.biome.setup({
+  capabilities = lspcfg.capabilities,
+  on_attach = function(client, bufnr)
+    lspcfg.on_attach(client, bufnr)
+    
+    -- Format with fixes
+    local function biome_format()
+      -- Request code actions ("safe fixes")
+      local params = vim.lsp.util.make_range_params(nil, client.offset_encoding)
+      params.context = {
+        only = { "source.fixAll.biome" },
+        diagnostics = {},
+      }
+      
+      local result = vim.lsp.buf_request_sync(
+        bufnr,
+        "textDocument/codeAction",
+        params,
+        1000
+      )
+      
+      -- Apply code actions synchronously before formatting
+      if result then
+        for client_id, response in pairs(result) do
+          if response.result then
+            for _, action in pairs(response.result) do
+              if action.edit then
+                vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
+              end
+            end
+          end
+        end
+      end
+      
+      -- Format code (indentation, spacing), runs after code actions
+      vim.lsp.buf.format({ bufnr = bufnr, timeout_ms = 1000 })
+    end
+    
+    -- Format on save
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      buffer = bufnr,
+      callback = biome_format,
+    })
+    
+    -- Manual keybinding (overwrites the default for this buffer)
+    vim.keymap.set("n", "gf", biome_format, { buffer = bufnr, desc = "Format with Biome" })
+  end,
+  handlers = lspcfg.handlers,
+})
 
 lsp.svelte.setup({
 	on_attach = function(client)
