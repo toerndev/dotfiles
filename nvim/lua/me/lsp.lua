@@ -1,20 +1,19 @@
 -- LSP base configurations
 
 local lspcfg = {
-	capabilities = require("cmp_nvim_lsp").default_capabilities(vim.lsp.protocol.make_client_capabilities()),
+	capabilities = require("cmp_nvim_lsp").default_capabilities(),
 	on_attach = function(client, bufnr)
-		vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
+		vim.bo[bufnr].omnifunc = "v:lua.vim.lsp.omnifunc"
 	end,
 	handlers = {
 		["textDocument/publishDiagnostics"] = vim.lsp.with(
-			vim.lsp.diagnostic.on_publish_diagnostics,
+			vim.lsp.handlers["textDocument/publishDiagnostics"],
 			{ virtual_text = false }
 		),
 	},
 }
 
 -- TypeScript / ESLint
-local lsp = require("lspconfig")
 
 -- support yarn PnP if present
 local tsserver_path = ".yarn/sdks/typescript/bin/tsserver"
@@ -25,7 +24,7 @@ else
 	tsserver_path = "tsserver"
 end
 
-lsp.ts_ls.setup({
+vim.lsp.config('ts_ls', {
 	capabilities = lspcfg.capabilities,
 	on_attach = lspcfg.on_attach,
 	cmd = {
@@ -36,12 +35,13 @@ lsp.ts_ls.setup({
 	},
 	handlers = lspcfg.handlers,
 })
+vim.lsp.enable('ts_ls')
 
-lsp.biome.setup({
+vim.lsp.config('biome', {
   capabilities = lspcfg.capabilities,
   on_attach = function(client, bufnr)
     lspcfg.on_attach(client, bufnr)
-    
+
     -- Format with fixes
     local function biome_format()
       -- Request code actions ("safe fixes")
@@ -50,14 +50,14 @@ lsp.biome.setup({
         only = { "source.fixAll.biome" },
         diagnostics = {},
       }
-      
+
       local result = vim.lsp.buf_request_sync(
         bufnr,
         "textDocument/codeAction",
         params,
         1000
       )
-      
+
       -- Apply code actions synchronously before formatting
       if result then
         for client_id, response in pairs(result) do
@@ -70,40 +70,42 @@ lsp.biome.setup({
           end
         end
       end
-      
+
       -- Format code (indentation, spacing), runs after code actions
       vim.lsp.buf.format({ bufnr = bufnr, timeout_ms = 1000 })
     end
-    
+
     -- Format on save
     vim.api.nvim_create_autocmd("BufWritePre", {
       buffer = bufnr,
       callback = biome_format,
     })
-    
+
     -- Manual keybinding (overwrites the default for this buffer)
     vim.keymap.set("n", "gf", biome_format, { buffer = bufnr, desc = "Format with Biome" })
   end,
   handlers = lspcfg.handlers,
 })
+vim.lsp.enable('biome')
 
-lsp.svelte.setup({
+vim.lsp.config('svelte', {
 	on_attach = function(client)
 		client.server_capabilities.document_formatting = false
 	end,
 })
+vim.lsp.enable('svelte')
 
-lsp.eslint.setup({
+vim.lsp.config('eslint', {
 	on_attach = lspcfg.on_attach,
 	handlers = lspcfg.handlers,
 })
+vim.lsp.enable('eslint')
 
-lsp.yamlls.setup({
+vim.lsp.config('yamlls', {
   on_attach = function(client)
     client.server_capabilities.document_formatting = true
 		client.server_capabilities.document_range_formatting = true
   end,
-  capabilities = vim.lsp.protocol.make_client_capabilities(),
   format = {
     enable = true,
     singleQuote = true,
@@ -139,8 +141,9 @@ lsp.yamlls.setup({
     debouce_text_changes = 200
   }
 })
+vim.lsp.enable('yamlls')
 
-lsp.jsonls.setup({
+vim.lsp.config('jsonls', {
   settings = {
     json = {
       schemas = require('schemastore').json.schemas {
@@ -157,8 +160,9 @@ lsp.jsonls.setup({
     }
   }
 })
+vim.lsp.enable('jsonls')
 
-lsp.lua_ls.setup({
+vim.lsp.config('lua_ls', {
 	on_attach = function(client)
 		client.server_capabilities.document_formatting = false
 		client.server_capabilities.document_range_formatting = false
@@ -192,6 +196,7 @@ lsp.lua_ls.setup({
 		},
 	},
 })
+vim.lsp.enable('lua_ls')
 
 
 local null_ls = require("null-ls")
