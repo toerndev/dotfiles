@@ -2,8 +2,9 @@ return {
   "nvim-treesitter/nvim-treesitter",
   build = ":TSUpdate",
   event = { "BufReadPost", "BufNewFile" },
-  -- highlight and indent are built into Neovim 0.11+, no config needed
+  -- highlight is built into Neovim 0.11+; indent is still provided by this plugin
   opts = {
+    indent = { enable = true },
     ensure_installed = {
       "lua",
       "typescript",

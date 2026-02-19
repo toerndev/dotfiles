@@ -47,7 +47,6 @@ return {
           vtsls = { autoUseWorkspaceTsdk = true },
           typescript = {
             updateImportsOnFileMove = { enabled = "always" },
-            suggest = { completeFunctionCalls = true },
           },
         },
       })
