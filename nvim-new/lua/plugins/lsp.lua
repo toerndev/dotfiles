@@ -1,0 +1,136 @@
+return {
+  {
+    "neovim/nvim-lspconfig", -- provides default server configs for vim.lsp.config
+    dependencies = {
+      "saghen/blink.cmp", -- provides LSP capabilities for completion
+    },
+    config = function()
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
+
+      -- Two-pass biome fix+format: lint fixes first, then whitespace format.
+      -- Used by both BufWritePre and <leader>cf so they behave identically.
+      local function biome_fix_and_format(client, bufnr)
+        local params = {
+          textDocument = { uri = vim.uri_from_bufnr(bufnr) },
+          range = {
+            start = { line = 0, character = 0 },
+            ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 },
+          },
+          context = { only = { "source.fixAll.biome" }, diagnostics = {} },
+        }
+        local result = client:request_sync("textDocument/codeAction", params, 2000, bufnr)
+        if result and result.result then
+          for _, action in ipairs(result.result) do
+            if action.edit then
+              vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
+            end
+          end
+        end
+        vim.lsp.buf.format({ async = false, name = "biome", bufnr = bufnr })
+      end
+
+      -- <leader>cf: biome two-pass if attached, otherwise conform
+      vim.keymap.set("n", "<leader>cf", function()
+        local bufnr = vim.api.nvim_get_current_buf()
+        local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "biome" })
+        if #clients > 0 then
+          biome_fix_and_format(clients[1], bufnr)
+        else
+          require("conform").format({ lsp_format = "fallback" })
+        end
+      end, { desc = "Format buffer" })
+
+      -- vtsls: TypeScript/JavaScript
+      vim.lsp.config("vtsls", {
+        capabilities = capabilities,
+        settings = {
+          vtsls = { autoUseWorkspaceTsdk = true },
+          typescript = {
+            updateImportsOnFileMove = { enabled = "always" },
+            suggest = { completeFunctionCalls = true },
+          },
+        },
+      })
+
+      -- biome: diagnostics, lint fixes, and formatting (see BufWritePre autocmd below)
+      vim.lsp.config("biome", {
+        capabilities = capabilities,
+      })
+
+      -- eslint: diagnostics and lint fixes for non-biome projects
+      vim.lsp.config("eslint", {
+        capabilities = capabilities,
+      })
+
+      vim.lsp.enable({ "vtsls", "biome", "eslint" })
+
+      -- LSP keymaps (attached per-buffer when an LSP connects)
+      vim.api.nvim_create_autocmd("LspAttach", {
+        callback = function(event)
+          local map = function(keys, func, desc)
+            vim.keymap.set("n", keys, func, { buffer = event.buf, desc = desc })
+          end
+          map("gd", vim.lsp.buf.definition, "Go to definition")
+          map("gr", vim.lsp.buf.references, "Go to references")
+          map("gI", vim.lsp.buf.implementation, "Go to implementation")
+          map("gy", vim.lsp.buf.type_definition, "Go to type definition")
+          map("K", vim.lsp.buf.hover, "Hover documentation")
+          map("<leader>ca", vim.lsp.buf.code_action, "Code action")
+          map("<leader>cr", vim.lsp.buf.rename, "Rename symbol")
+          map("<leader>cd", function()
+            vim.diagnostic.jump({ count = 1 })
+          end, "Next diagnostic")
+          map("<leader>cD", function()
+            vim.diagnostic.jump({ count = -1 })
+          end, "Previous diagnostic")
+        end,
+      })
+
+      -- Biome: two-pass BufWritePre — lint fixes first, then whitespace format
+      vim.api.nvim_create_autocmd("LspAttach", {
+        callback = function(args)
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+          if not client or client.name ~= "biome" then
+            return
+          end
+
+          vim.api.nvim_create_autocmd("BufWritePre", {
+            buffer = args.buf,
+            callback = function()
+              biome_fix_and_format(client, args.buf)
+            end,
+          })
+        end,
+      })
+
+      -- ESLint: apply lint fixes on save (formatting handled by conform/prettier)
+      vim.api.nvim_create_autocmd("LspAttach", {
+        callback = function(args)
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+          if not client or client.name ~= "eslint" then
+            return
+          end
+
+          vim.api.nvim_create_autocmd("BufWritePre", {
+            buffer = args.buf,
+            callback = function()
+              vim.lsp.buf.code_action({
+                context = { only = { "source.fixAll.eslint" }, diagnostics = {} },
+                apply = true,
+              })
+            end,
+          })
+        end,
+      })
+    end,
+  },
+  {
+    "rachartier/tiny-inline-diagnostic.nvim",
+    event = "LspAttach",
+    priority = 1000,
+    config = function()
+      require("tiny-inline-diagnostic").setup({ preset = "modern" })
+      vim.diagnostic.config({ virtual_text = false }) -- replaced by tiny-inline-diagnostic
+    end,
+  },
+}
