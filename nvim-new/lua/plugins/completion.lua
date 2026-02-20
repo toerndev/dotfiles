@@ -9,7 +9,9 @@ return {
   opts = {
     keymap = {
       preset = "enter",
-      ["<Tab>"] = { "accept", "fallback" },
+      -- select_and_accept works with preselect=false: accepts first item immediately,
+      -- or the navigated-to item after C-j/C-k
+      ["<Tab>"] = { "select_and_accept", "fallback" },
       ["<C-j>"] = { "select_next", "fallback" },
       ["<C-k>"] = { "select_prev", "fallback" },
     },
@@ -17,10 +19,18 @@ return {
     completion = {
       accept = { auto_brackets = { enabled = true } },
       documentation = { auto_show = true, auto_show_delay_ms = 200 },
+      list = {
+        selection = {
+          -- With the enter preset, preselect=true causes Enter to silently accept the
+          -- first LSP completion (possibly a multi-line snippet), bypassing indentexpr.
+          -- preselect=false: Enter always falls through to indentexpr (4 spaces). ✓
+          preselect = false,
+        },
+      },
     },
     sources = {
       default = { "lsp", "path", "snippets", "buffer" },
     },
-    cmdline = { enabled = true },
+    cmdline = { enabled = false }, -- noice.nvim handles cmdline UI
   },
 }

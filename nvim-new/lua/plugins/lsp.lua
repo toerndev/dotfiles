@@ -73,6 +73,8 @@ return {
 
       vim.lsp.enable({ "vtsls", "biome", "eslint" })
 
+      vim.diagnostic.config({ virtual_lines = { current_line = true } })
+
       -- LSP keymaps (attached per-buffer when an LSP connects)
       vim.api.nvim_create_autocmd("LspAttach", {
         callback = function(event)
@@ -87,12 +89,12 @@ return {
           map("<leader>ca", vim.lsp.buf.code_action, "Code action")
           map("<leader>cr", vim.lsp.buf.rename, "Rename symbol")
           map("g=", format_buffer, "Format buffer (biome or conform)")
-          map("<leader>cd", function()
-            vim.diagnostic.jump({ count = 1 })
-          end, "Next diagnostic")
-          map("<leader>cD", function()
-            vim.diagnostic.jump({ count = -1 })
-          end, "Previous diagnostic")
+          vim.keymap.set("n", "<C-j>", function()
+            vim.diagnostic.jump({ count = 1, float = true })
+          end, { buffer = event.buf, desc = "Next diagnostic" })
+          vim.keymap.set("n", "<C-k>", function()
+            vim.diagnostic.jump({ count = -1, float = true })
+          end, { buffer = event.buf, desc = "Previous diagnostic" })
         end,
       })
 
@@ -132,15 +134,6 @@ return {
           })
         end,
       })
-    end,
-  },
-  {
-    "rachartier/tiny-inline-diagnostic.nvim",
-    event = "LspAttach",
-    priority = 1000,
-    config = function()
-      require("tiny-inline-diagnostic").setup({ preset = "modern" })
-      vim.diagnostic.config({ virtual_text = false }) -- replaced by tiny-inline-diagnostic
     end,
   },
 }
