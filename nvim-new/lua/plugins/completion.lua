@@ -3,10 +3,16 @@ return {
   version = "1.*",
   dependencies = {
     "rafamadriz/friendly-snippets", -- snippet collection
+    { dir = vim.fn.stdpath("config") .. "/snippets" }, -- custom snippets
   },
-  event = "InsertEnter",
+  lazy = false,
   opts = {
-    keymap = { preset = "enter" },
+    keymap = {
+      preset = "enter",
+      ["<Tab>"] = { "accept", "fallback" },
+      ["<C-j>"] = { "select_next", "fallback" },
+      ["<C-k>"] = { "select_prev", "fallback" },
+    },
     appearance = { nerd_font_variant = "mono" },
     completion = {
       accept = { auto_brackets = { enabled = true } },

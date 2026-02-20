@@ -7,16 +7,17 @@ return {
     config = function()
       local capabilities = require("blink.cmp").get_lsp_capabilities()
 
-      -- Two-pass biome fix+format: lint fixes first, then whitespace format.
-      -- Used by both BufWritePre and <leader>cf so they behave identically.
-      local function biome_fix_and_format(client, bufnr)
+      -- Apply a specific biome code action kind (e.g. source.fixAll.biome, source.organizeImports.biome).
+      -- context.only filters what the server returns; without it all action kinds come back in one
+      -- response, which can cause conflicts. Splitting into separate requests guarantees ordering.
+      local function biome_apply_action(client, bufnr, kind)
         local params = {
           textDocument = { uri = vim.uri_from_bufnr(bufnr) },
           range = {
             start = { line = 0, character = 0 },
             ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 },
           },
-          context = { only = { "source.fixAll.biome" }, diagnostics = {} },
+          context = { only = { kind }, diagnostics = {} },
         }
         local result = client:request_sync("textDocument/codeAction", params, 2000, bufnr)
         if result and result.result then
@@ -26,11 +27,18 @@ return {
             end
           end
         end
+      end
+
+      -- Three-pass biome fix+format: lint fixes, then import organization, then whitespace format.
+      -- Used by both BufWritePre and <leader>cf/<g=> so they behave identically.
+      local function biome_fix_and_format(client, bufnr)
+        biome_apply_action(client, bufnr, "source.fixAll.biome")
+        biome_apply_action(client, bufnr, "source.organizeImports.biome")
         vim.lsp.buf.format({ async = false, name = "biome", bufnr = bufnr })
       end
 
-      -- <leader>cf: biome two-pass if attached, otherwise conform
-      vim.keymap.set("n", "<leader>cf", function()
+      -- biome two-pass if attached, otherwise conform
+      local function format_buffer()
         local bufnr = vim.api.nvim_get_current_buf()
         local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "biome" })
         if #clients > 0 then
@@ -38,7 +46,9 @@ return {
         else
           require("conform").format({ lsp_format = "fallback" })
         end
-      end, { desc = "Format buffer" })
+      end
+
+      vim.keymap.set("n", "<leader>cf", format_buffer, { desc = "Format buffer" })
 
       -- vtsls: TypeScript/JavaScript
       vim.lsp.config("vtsls", {
@@ -76,6 +86,7 @@ return {
           map("K", vim.lsp.buf.hover, "Hover documentation")
           map("<leader>ca", vim.lsp.buf.code_action, "Code action")
           map("<leader>cr", vim.lsp.buf.rename, "Rename symbol")
+          map("g=", format_buffer, "Format buffer (biome or conform)")
           map("<leader>cd", function()
             vim.diagnostic.jump({ count = 1 })
           end, "Next diagnostic")

@@ -20,7 +20,7 @@ return {
         lualine_a = { "mode" },
         lualine_b = { "branch", "diff", "diagnostics" },
         lualine_c = { { "filename", path = 1 } },
-        lualine_x = { "encoding", "filetype" },
+        lualine_x = { { "overseer" }, "encoding", "filetype" },
         lualine_y = { "progress" },
         lualine_z = { "location" },
       },
@@ -35,6 +35,7 @@ return {
         { "<leader>c", group = "code" },
         { "<leader>f", group = "find" },
         { "<leader>g", group = "git" },
+        { "<leader>o", group = "overseer" },
       },
     },
     keys = {
