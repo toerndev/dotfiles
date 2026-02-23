@@ -54,10 +54,13 @@ return {
       notifier = { enabled = false }, -- noice handles notifications
       lazygit = { enabled = true },
       rename = { enabled = true },
+      terminal = { enabled = true },
       input = { enabled = true },     -- replaces vim.ui.input (rename prompts, etc.)
       select = { enabled = true },    -- replaces vim.ui.select (code actions, LSP picks, etc.)
     },
     keys = {
+      { "<C-\\>", function() Snacks.terminal() end, desc = "Toggle terminal", mode = { "n", "t" } },
+      { "<C-t>", function() Snacks.terminal(nil, { count = 2 }) end, desc = "Toggle terminal 2", mode = { "n", "t" } },
       { "<leader>gg", function() Snacks.lazygit() end, desc = "LazyGit" },
       { "<leader>fr", function() Snacks.rename.rename_file() end, desc = "Rename file" },
     },
