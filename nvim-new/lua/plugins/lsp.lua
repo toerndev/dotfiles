@@ -49,6 +49,7 @@ return {
       end
 
       vim.keymap.set("n", "<leader>cf", format_buffer, { desc = "Format buffer" })
+      vim.keymap.set("n", "<C-s>", format_buffer, { desc = "Format buffer" })
 
       -- vtsls: TypeScript/JavaScript
       vim.lsp.config("vtsls", {
@@ -87,9 +88,9 @@ return {
           map("gy", vim.lsp.buf.type_definition, "Go to type definition")
           map("K", vim.lsp.buf.hover, "Hover documentation")
           map("<leader>ca", vim.lsp.buf.code_action, "Code action")
+          map("<C-a>", vim.lsp.buf.code_action, "Code action")
           map("<leader>cr", vim.lsp.buf.rename, "Rename symbol")
-          map("g=", format_buffer, "Format buffer (biome or conform)")
-          vim.keymap.set("n", "<C-j>", function()
+vim.keymap.set("n", "<C-j>", function()
             vim.diagnostic.jump({ count = 1, float = true })
           end, { buffer = event.buf, desc = "Next diagnostic" })
           vim.keymap.set("n", "<C-k>", function()

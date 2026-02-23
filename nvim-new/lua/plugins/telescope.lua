@@ -7,8 +7,8 @@ return {
   cmd = "Telescope",
   keys = {
     { "<C-f>", "<cmd>Telescope find_files<cr>", desc = "Find files" },
-    { "<leader>/", "<cmd>Telescope live_grep<cr>", desc = "Live grep" },
-    { "<leader>b", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
+    { "<C-b>", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
+    { "<C-g>", "<cmd>Telescope live_grep<cr>", desc = "Live grep" },
   },
   config = function()
     local telescope = require("telescope")
