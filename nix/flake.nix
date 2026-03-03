@@ -10,54 +10,28 @@
 
   outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }@inputs:
     let
-      systemConfig = {
-        stateVersion = "24.11";
-	architecture = "x86_64-linux";
-      };
-      pkgs = import nixpkgs { system = systemConfig.architecture; };
       pkgs-unstable = import nixpkgs-unstable {
-        system = systemConfig.architecture;
+        system = "x86_64-linux";
         config.allowUnfree = true;
       };
     in {
       nixosConfigurations = {
         htpc = nixpkgs.lib.nixosSystem {
-	  system = systemConfig.architecture;
-	  modules = [
-	    ./htpc.nix
-	    ./common.nix
-	    home-manager.nixosModules.home-manager
-	    {
-	      users.users.losipai = {
-		isNormalUser = true;
-		extraGroups = [ "input" "audio" "pipewire" "networkmanager" "wheel" ];
-		packages = with pkgs; [];
-		openssh.authorizedKeys.keys = [
-		  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOvmccLuoKuu0hxlj+sGean56+UzXx/cXwq3V14F89jh personal"
-		];
-	      };
-
-              nixpkgs.config.allowUnfree = true;
-	      home-manager.useGlobalPkgs = true;
-	      home-manager.useUserPackages = true;
-	      home-manager.backupFileExtension = "backup";
-	      home-manager.users.losipai = import ./home/default.nix;
-	      home-manager.users.htpc-user = import ./home/htpc.nix;
-	      home-manager.extraSpecialArgs = { inherit inputs systemConfig pkgs-unstable; };
-	    }
-	  ];
-	  specialArgs = { inherit inputs systemConfig pkgs-unstable; };
-	};
-      };
-
-      homeConfigurations = {
-        "losipai" = home-manager.lib.homeManagerConfiguration {
-	  pkgs = nixpkgs.legacyPackages.${systemConfig.architecture};
-	  extraSpecialArgs = { inherit inputs systemConfig; };
-	  modules = [
-	    ./home/default.nix
-	  ];
-	};
+          system = "x86_64-linux";
+          modules = [
+            ./hosts/htpc
+            home-manager.nixosModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.backupFileExtension = "backup";
+              home-manager.users.losipai = import ./home/default.nix;
+              home-manager.users.htpc-user = import ./home/htpc.nix;
+              home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable; };
+            }
+          ];
+          specialArgs = { inherit inputs pkgs-unstable; };
+        };
       };
     };
 }

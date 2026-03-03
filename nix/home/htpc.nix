@@ -1,9 +1,9 @@
-{ config, pkgs, lib, inputs, systemConfig, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 {
   home.username = "htpc-user";
   home.homeDirectory = "/home/htpc";
-  home.stateVersion = systemConfig.stateVersion;
+  home.stateVersion = "24.11";
 
   programs.home-manager.enable = true;
 
