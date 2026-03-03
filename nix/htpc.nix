@@ -54,8 +54,18 @@
   services.openssh = {
     enable = true;
     settings = {
-      PasswordAuthentication = true;
+      PasswordAuthentication = false;
+      KbdInteractiveAuthentication = false;
+      PermitRootLogin = "no";
+      X11Forwarding = false;
+      MaxAuthTries = 3;
     };
+    openFirewall = true;
+  };
+
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [ 22 8096 ];  # SSH + Jellyfin
   };
 
   services.seatd.enable = true;
