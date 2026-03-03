@@ -1,4 +1,4 @@
-{ config, pkgs, systemConfig, ... }:
+{ config, pkgs, pkgs-unstable, systemConfig, ... }:
 
 {
   boot.loader.systemd-boot = {
@@ -51,12 +51,14 @@
     bat
     bc
     curl
+    gcc
     git
     github-cli
-    neovim
+    pkgs-unstable.neovim
   ];
 
   environment.variables.EDITOR = "nvim";
+  environment.variables.COLORTERM = "truecolor";
   environment.shellAliases = {
     gs = "git status";
     vim = "nvim";
