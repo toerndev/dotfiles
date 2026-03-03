@@ -37,14 +37,22 @@ return {
         vim.lsp.buf.format({ async = false, name = "biome", bufnr = bufnr })
       end
 
-      -- biome two-pass if attached, otherwise conform
+      -- Filetypes biome actually formats (graphql is lint-only in biome)
+      local biome_fmt_fts = {
+        javascript = true, javascriptreact = true,
+        typescript = true, typescriptreact = true,
+        json = true, jsonc = true, css = true,
+      }
+
+      -- biome two-pass if attached and filetype is supported, otherwise conform
       local function format_buffer()
         local bufnr = vim.api.nvim_get_current_buf()
+        local ft = vim.bo[bufnr].filetype
         local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "biome" })
-        if #clients > 0 then
+        if #clients > 0 and biome_fmt_fts[ft] then
           biome_fix_and_format(clients[1], bufnr)
         else
-          require("conform").format({ lsp_format = "fallback" })
+          require("conform").format({ lsp_format = "fallback", notify_on_error = true })
         end
       end
 
