@@ -78,16 +78,71 @@ return {
     },
     config = function(_, opts)
       require("snacks").setup(opts)
-      -- Re-show any open terminals after a window resize so they fit the new
-      -- dimensions and keep focus (floating windows don't auto-resize).
+      -- Re-show open terminals after a resize so they fit the new dimensions.
+      -- Collect all visible terminals first, hide them, then re-show in one
+      -- scheduled batch and restore focus to whichever one was active.
       vim.api.nvim_create_autocmd("VimResized", {
         callback = function()
+          local current_win = vim.api.nvim_get_current_win()
+          local to_restore = {}
           for _, t in pairs(Snacks.terminal._terminals or {}) do
             if t.win:is_valid() then
+              table.insert(to_restore, { terminal = t, focused = t.win.win == current_win })
               t.win:hide()
-              vim.schedule(function()
-                t.win:show()
-              end)
+            end
+          end
+          vim.schedule(function()
+            local focus_win = nil
+            for _, item in ipairs(to_restore) do
+              item.terminal.win:show()
+              if item.focused then
+                focus_win = item.terminal.win.win
+              end
+            end
+            if focus_win and vim.api.nvim_win_is_valid(focus_win) then
+              vim.api.nvim_set_current_win(focus_win)
+            end
+          end)
+        end,
+      })
+      -- Warn before quitting if overseer tasks or terminal processes are running.
+      -- Skip the check when :qa! is used (vim.v.cmdbang == 1).
+      vim.api.nvim_create_autocmd("QuitPre", {
+        callback = function()
+          if vim.v.cmdbang == 1 then
+            return
+          end
+          local warnings = {}
+          -- Running overseer tasks
+          local ok, overseer = pcall(require, "overseer")
+          if ok then
+            for _, task in ipairs(overseer.list_tasks({ unique = false })) do
+              if task.status == overseer.STATUS.RUNNING then
+                table.insert(warnings, "  overseer: " .. task.name)
+              end
+            end
+          end
+          -- Terminals with an active foreground process (shell has child processes)
+          for id, t in pairs(Snacks.terminal._terminals or {}) do
+            if t.buf and vim.api.nvim_buf_is_valid(t.buf) then
+              local job_id = vim.b[t.buf].terminal_job_id
+              if job_id then
+                local pid = vim.fn.jobpid(job_id)
+                if pid and pid > 0 then
+                  local children = vim.fn.systemlist("pgrep -P " .. pid .. " 2>/dev/null")
+                  if #children > 0 then
+                    table.insert(warnings, "  terminal " .. id .. " (active process)")
+                  end
+                end
+              end
+            end
+          end
+          if #warnings > 0 then
+            local msg = "Background tasks are running:\n"
+              .. table.concat(warnings, "\n")
+              .. "\n\nQuit anyway?"
+            if vim.fn.confirm(msg, "&Yes\n&No", 2) ~= 1 then
+              vim.cmd("throw 'quit cancelled'")
             end
           end
         end,

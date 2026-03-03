@@ -1,5 +1,9 @@
 local map = vim.keymap.set
 
+-- Indent/unindent and reselect
+map("v", "<", "<gv", { desc = "Unindent selection" })
+map("v", ">", ">gv", { desc = "Indent selection" })
+
 -- Sort selection
 map("v", "s", ":sort<CR>", { desc = "Sort selection" })
 

@@ -72,7 +72,18 @@ return {
         capabilities = capabilities,
       })
 
-      vim.lsp.enable({ "vtsls", "biome", "eslint" })
+      -- gopls: Go
+      vim.lsp.config("gopls", {
+        capabilities = capabilities,
+        settings = {
+          gopls = {
+            analyses = { unusedparams = true },
+            staticcheck = true,
+          },
+        },
+      })
+
+      vim.lsp.enable({ "vtsls", "biome", "eslint", "gopls" })
 
       vim.diagnostic.config({ virtual_lines = { current_line = true } })
 

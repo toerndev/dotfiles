@@ -12,6 +12,7 @@ return {
       jsonc = { "prettierd", "prettier" },
       css = { "prettierd", "prettier" },
       -- Non-JS tooling (never has LSP formatting)
+      go = { "goimports" },
       lua = { "stylua" },
       nix = { "nixfmt" },
     },
