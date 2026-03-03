@@ -1,8 +1,8 @@
 { config, pkgs, ... }:
 
 {
-  home.username = "martint";
-  home.homeDirectory = "/home/martint";
+  home.username = "losipai";
+  home.homeDirectory = "/home/losipai";
   nixpkgs.config.allowUnfree = true;
 
   home.stateVersion = "24.05";
