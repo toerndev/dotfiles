@@ -1,9 +1,9 @@
-{ config, pkgs, pkgs-unstable, lib, inputs, systemConfig, ... }:
+{ config, pkgs, pkgs-unstable, lib, inputs, ... }:
 
 {
   home.username = "losipai";
   home.homeDirectory = "/home/losipai";
-  home.stateVersion = systemConfig.stateVersion;
+  home.stateVersion = "24.11";
 
   programs.home-manager.enable = true;
 
