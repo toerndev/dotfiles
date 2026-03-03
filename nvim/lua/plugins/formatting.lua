@@ -11,6 +11,7 @@ return {
       json = { "prettierd", "prettier" },
       jsonc = { "prettierd", "prettier" },
       css = { "prettierd", "prettier" },
+      graphql = { "prettierd", "prettier" },
       -- Non-JS tooling (never has LSP formatting)
       go = { "goimports" },
       lua = { "stylua" },

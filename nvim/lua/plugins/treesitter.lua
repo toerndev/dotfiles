@@ -15,6 +15,7 @@ return {
         "markdown_inline",
         "html",
         "css",
+        "graphql",
         "yaml",
         "bash",
       },
