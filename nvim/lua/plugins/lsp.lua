@@ -7,6 +7,11 @@ return {
     config = function()
       local capabilities = require("blink.cmp").get_lsp_capabilities()
 
+      -- Suppress VS Code-specific client commands that some LSP servers send
+      -- (e.g. eslint's setContext, vtsls's _typescript.projectInfo)
+      vim.lsp.commands["setContext"] = function() end
+      vim.lsp.commands["_typescript.projectInfo"] = function() end
+
       -- Apply a specific biome code action kind (e.g. source.fixAll.biome, source.organizeImports.biome).
       -- context.only filters what the server returns; without it all action kinds come back in one
       -- response, which can cause conflicts. Splitting into separate requests guarantees ordering.
