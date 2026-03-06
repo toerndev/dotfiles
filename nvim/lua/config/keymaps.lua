@@ -5,7 +5,7 @@ map("v", "<", "<gv", { desc = "Unindent selection" })
 map("v", ">", ">gv", { desc = "Indent selection" })
 
 -- Sort selection
-map("v", "s", ":sort<CR>", { desc = "Sort selection" })
+map("v", "gs", ":sort<CR>", { desc = "Sort selection" })
 
 -- Buffer navigation
 map("n", "<C-n>", "<cmd>bnext<CR>", { desc = "Next buffer" })
