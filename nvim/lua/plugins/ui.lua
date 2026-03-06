@@ -1,5 +1,10 @@
 return {
   {
+    "echasnovski/mini.surround",
+    event = "VeryLazy",
+    opts = {},
+  },
+  {
     "echasnovski/mini.icons",
     lazy = false,
     opts = {},
@@ -67,6 +72,7 @@ return {
     opts = {
       notifier = { enabled = false }, -- noice handles notifications
       lazygit = { enabled = true },
+      git = { enabled = true },
       rename = { enabled = true },
       terminal = { enabled = true },
       input = { enabled = true }, -- replaces vim.ui.input (rename prompts, etc.)
@@ -171,6 +177,13 @@ return {
           Snacks.lazygit()
         end,
         desc = "LazyGit",
+      },
+      {
+        "<leader>gb",
+        function()
+          Snacks.git.blame_line()
+        end,
+        desc = "Git blame line",
       },
       {
         "<leader>fr",
