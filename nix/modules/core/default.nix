@@ -7,5 +7,6 @@
     ./nix.nix
     ./ssh.nix
     ./users.nix
+    ./wireguard.nix
   ];
 }
