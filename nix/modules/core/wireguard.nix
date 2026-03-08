@@ -7,7 +7,8 @@
     listenPort = 51820;
     privateKeyFile = "/etc/secrets/wg-private-key";
     peers = [
-      { publicKey = "+9mageJp5UeDEDmj+EGw1inwy5BpMED0OjVu/tYF6U0="; allowedIPs = [ "10.100.0.2/32" ]; }  # Laptop
+      { publicKey = "+9mageJp5UeDEDmj+EGw1inwy5BpMED0OjVu/tYF6U0="; allowedIPs = [ "10.100.0.2/32" ]; }  # Home laptop
+      { publicKey = "k/A2D/QJE56P2gCF7iJi0LhOY8liZJ5jtorTiX/poB4="; allowedIPs = [ "10.100.0.3/32" ]; }  # Work laptop
     ];
   };
 
