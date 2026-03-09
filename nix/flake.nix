@@ -6,9 +6,13 @@
       url = "github:nix-community/home-manager/release-24.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    deploy-rs = {
+      url = "github:serokell/deploy-rs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, deploy-rs, ... }@inputs:
     let
       pkgs-unstable = import nixpkgs-unstable {
         system = "x86_64-linux";
@@ -33,5 +37,18 @@
           specialArgs = { inherit inputs pkgs-unstable; };
         };
       };
+
+      deploy.nodes.htpc = {
+        hostname = "10.100.0.1";
+        profiles.system = {
+          user = "root";
+          sshUser = "losipai";
+          path = deploy-rs.lib.x86_64-linux.activate.nixos
+            self.nixosConfigurations.htpc;
+        };
+      };
+
+      checks.x86_64-linux =
+        deploy-rs.lib.x86_64-linux.deployChecks self.deploy;
     };
 }

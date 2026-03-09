@@ -1,5 +1,11 @@
 { config, pkgs, ... }:
 {
+  # Required for deploy-rs: activation scripts run as root via sudo from a
+  # non-interactive SSH session. Password prompt would block the deploy.
+  # On NixOS, wheel already implies near-root access, so this doesn't
+  # meaningfully change the threat model for a single-admin machine.
+  security.sudo.wheelNeedsPassword = false;
+
   users.users.losipai = {
     isNormalUser = true;
     extraGroups = [ "input" "audio" "pipewire" "networkmanager" "wheel" ];
