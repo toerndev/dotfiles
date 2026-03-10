@@ -1,6 +1,7 @@
 { config, pkgs, ... }:
 {
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.trusted-users = [ "root" "losipai" ];
 
   nix.gc = {
     automatic = true;
