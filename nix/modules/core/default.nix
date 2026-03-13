@@ -4,7 +4,7 @@
     ./boot.nix
     ./locale.nix
     ./networking.nix
-    ./nginx.nix
+    ./caddy.nix
     ./nix.nix
     ./ssh.nix
     ./users.nix
