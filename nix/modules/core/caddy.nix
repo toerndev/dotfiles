@@ -2,7 +2,9 @@
 {
   services.caddy = {
     enable = true;
-    globalConfig = "admin off";
+    # Unix socket instead of "admin off" — Caddy's reload mechanism
+    # sends the new config via the admin API, so it must be reachable.
+    globalConfig = "admin unix//run/caddy/admin.sock";
 
     virtualHosts."http://" = {
       extraConfig = ''
@@ -13,24 +15,34 @@
 
     virtualHosts."http://10.100.0.1" = {
       listenAddresses = [ "10.100.0.1" ];
-      extraConfig = "reverse_proxy localhost:8082";
+      extraConfig = ''
+        handle /grafana* {
+          reverse_proxy localhost:3000
+        }
+
+        handle {
+          reverse_proxy localhost:8082
+        }
+      '';
     };
   };
 
   networking.firewall.allowedTCPPorts = [ 80 ];
 
   # Sandbox caddy loopback access — only allow backends it proxies to.
-  # Phase 2: add ACCEPT for :3000 (Grafana) and :3100 (Loki).
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -j REJECT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -j REJECT || true
   '';
 
   systemd.services.caddy.serviceConfig = {
+    RuntimeDirectory = "caddy";
     ProtectSystem = "strict";
     ProtectHome = true;
     NoNewPrivileges = true;

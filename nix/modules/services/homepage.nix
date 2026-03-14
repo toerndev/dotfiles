@@ -20,8 +20,8 @@
         "Observability" = [
           {
             "Grafana" = {
-              href = "http://10.100.0.1:3000";
-              description = "Dashboards (Phase 2)";
+              href = "http://10.100.0.1/grafana";
+              description = "Dashboards & logs";
             };
           }
         ];

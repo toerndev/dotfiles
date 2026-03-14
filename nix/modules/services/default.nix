@@ -5,5 +5,7 @@
     ./jellyfin.nix
     ./htpc.nix
     ./homepage.nix
+    ./grafana.nix
+    ./loki.nix
   ];
 }
