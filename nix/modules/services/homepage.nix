@@ -3,6 +3,7 @@
   services.homepage-dashboard = {
     enable = true;
     listenPort = 8082;
+    openFirewall = false;
 
     services = [
       {
@@ -37,4 +38,7 @@
       }
     ];
   };
+
+  # Bind to localhost only — Caddy reverse-proxies on the WG vhost.
+  systemd.services.homepage-dashboard.environment.HOSTNAME = "127.0.0.1";
 }

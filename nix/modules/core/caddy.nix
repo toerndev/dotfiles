@@ -38,9 +38,14 @@
     RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" ];
     SystemCallFilter = [ "@system-service" ];
     SystemCallArchitectures = "native";
+    ProtectClock = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
     ProtectKernelTunables = true;
     ProtectKernelModules = true;
     ProtectControlGroups = true;
+    RemoveIPC = true;
+    RestrictNamespaces = true;
     RestrictRealtime = true;
     RestrictSUIDSGID = true;
     PrivateTmp = true;
