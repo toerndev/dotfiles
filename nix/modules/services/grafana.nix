@@ -21,19 +21,26 @@
         url = "http://localhost:3100";
         isDefault = true;
       }
+      {
+        name = "Prometheus";
+        type = "prometheus";
+        url = "http://localhost:9090";
+      }
     ];
   };
 
   # Sandbox grafana loopback access — allow responses to incoming connections
-  # (Caddy reverse proxy) and outbound to Loki only.
+  # (Caddy reverse proxy) and outbound to Loki and Prometheus only.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner grafana -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner grafana -o lo -p tcp --dport 3100 -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner grafana -o lo -p tcp --dport 9090 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner grafana -o lo -j REJECT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner grafana -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner grafana -o lo -p tcp --dport 3100 -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner grafana -o lo -p tcp --dport 9090 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner grafana -o lo -j REJECT || true
   '';
 }
