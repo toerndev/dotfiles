@@ -10,6 +10,13 @@
       extraConfig = ''
         root * /var/www/public
         file_server browse
+
+        log {
+          output file /var/log/caddy/access-public.log {
+            mode 0640
+          }
+          format json
+        }
       '';
     };
 
@@ -22,6 +29,13 @@
 
         handle {
           reverse_proxy localhost:8082
+        }
+
+        log {
+          output file /var/log/caddy/access-wg.log {
+            mode 0640
+          }
+          format json
         }
       '';
     };
@@ -43,6 +57,7 @@
 
   systemd.services.caddy.serviceConfig = {
     RuntimeDirectory = "caddy";
+    ReadWritePaths = [ "/var/log/caddy" ];
     ProtectSystem = "strict";
     ProtectHome = true;
     NoNewPrivileges = true;
@@ -68,5 +83,6 @@
   systemd.tmpfiles.rules = [
     "d /var/www/public 0755 root root -"
     "d /var/www/internal 0755 root root -"
+    "d /var/log/caddy 0750 caddy caddy -"
   ];
 }
