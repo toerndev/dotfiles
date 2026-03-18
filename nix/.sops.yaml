@@ -1,0 +1,8 @@
+keys:
+  - &htpc age12v2trr3z00pyh3g7z5u32rcgethgu4vhfw8ssnlkmeknjpeqhcas95ac9x
+
+creation_rules:
+  - path_regex: secrets/.*\.yaml$
+    key_groups:
+      - age:
+          - *htpc

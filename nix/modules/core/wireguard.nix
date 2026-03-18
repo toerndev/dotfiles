@@ -1,11 +1,11 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 {
   environment.systemPackages = [ pkgs.wireguard-tools ];
 
   networking.wireguard.interfaces.wg0 = {
     ips = [ "10.100.0.1/24" ];
     listenPort = 51820;
-    privateKeyFile = "/etc/secrets/wg-private-key";
+    privateKeyFile = config.sops.secrets.wireguard_private_key.path;
     mtu = 1280;
     peers = [
       { publicKey = "+9mageJp5UeDEDmj+EGw1inwy5BpMED0OjVu/tYF6U0="; allowedIPs = [ "10.100.0.2/32" ]; }  # Home laptop

@@ -1,15 +1,29 @@
-{ ... }:
+{ config, pkgs, lib, ... }:
 {
   services.caddy = {
     enable = true;
+
+    # caddy-dns/cloudflare plugin for DNS-01 ACME challenge.
+    # To get the correct vendorHash: set hash = lib.fakeHash, run
+    #   nix build .#nixosConfigurations.htpc.config.services.caddy.package
+    # then replace lib.fakeHash with the hash nix reports.
+    package = pkgs.caddy.withPlugins {
+      plugins = [ "github.com/caddy-dns/cloudflare@v0.0.0-20250109122255-46b6e2294ccf" ];
+      hash = lib.fakeHash;
+    };
+
     # Unix socket instead of "admin off" — Caddy's reload mechanism
     # sends the new config via the admin API, so it must be reachable.
     globalConfig = "admin unix//run/caddy/admin.sock";
 
-    virtualHosts."http://" = {
+    virtualHosts."datasvard.com" = {
       extraConfig = ''
         root * /var/www/public
         file_server browse
+
+        tls {
+          dns cloudflare {env.CF_API_TOKEN}
+        }
 
         log {
           output file /var/log/caddy/access-public.log {
@@ -41,7 +55,7 @@
     };
   };
 
-  networking.firewall.allowedTCPPorts = [ 80 ];
+  networking.firewall.allowedTCPPorts = [ 80 443 ];
 
   # Sandbox caddy loopback access — only allow backends it proxies to.
   networking.firewall.extraCommands = ''
@@ -56,8 +70,9 @@
   '';
 
   systemd.services.caddy.serviceConfig = {
+    EnvironmentFile = config.sops.templates."caddy-cloudflare-env".path;
     RuntimeDirectory = "caddy";
-    ReadWritePaths = [ "/var/log/caddy" ];
+    ReadWritePaths = [ "/var/log/caddy" "/var/lib/caddy" ];
     ProtectSystem = "strict";
     ProtectHome = true;
     NoNewPrivileges = true;
