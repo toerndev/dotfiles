@@ -18,6 +18,28 @@ return {
       lua = { "stylua" },
       nix = { "nixfmt" },
     },
+    formatters = {
+      prettierd = {
+        condition = function(_, ctx)
+          return vim.fs.root(ctx.buf, {
+            ".prettierrc", ".prettierrc.json", ".prettierrc.json5",
+            ".prettierrc.yaml", ".prettierrc.yml", ".prettierrc.toml",
+            ".prettierrc.js", ".prettierrc.cjs", ".prettierrc.mjs",
+            "prettier.config.js", "prettier.config.cjs", "prettier.config.mjs", "prettier.config.ts",
+          }) ~= nil
+        end,
+      },
+      prettier = {
+        condition = function(_, ctx)
+          return vim.fs.root(ctx.buf, {
+            ".prettierrc", ".prettierrc.json", ".prettierrc.json5",
+            ".prettierrc.yaml", ".prettierrc.yml", ".prettierrc.toml",
+            ".prettierrc.js", ".prettierrc.cjs", ".prettierrc.mjs",
+            "prettier.config.js", "prettier.config.cjs", "prettier.config.mjs", "prettier.config.ts",
+          }) ~= nil
+        end,
+      },
+    },
     format_on_save = function(bufnr)
       -- Biome files are handled entirely by the LspAttach autocmd in lsp.lua
       -- (two-pass: lint fixes then whitespace format). Skip conform for those buffers.
@@ -30,7 +52,7 @@ return {
       if #vim.lsp.get_clients({ bufnr = bufnr, name = "biome" }) > 0 and biome_fmt_fts[ft] then
         return nil
       end
-      return { timeout_ms = 2000, lsp_format = "fallback" }
+      return { timeout_ms = 2000, lsp_format = "never" }
     end,
   },
 }

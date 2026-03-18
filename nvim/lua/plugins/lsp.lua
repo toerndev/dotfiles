@@ -57,7 +57,7 @@ return {
         if #clients > 0 and biome_fmt_fts[ft] then
           biome_fix_and_format(clients[1], bufnr)
         else
-          require("conform").format({ lsp_format = "fallback", notify_on_error = true })
+          require("conform").format({ lsp_format = "never", notify_on_error = true })
         end
       end
 
@@ -76,8 +76,17 @@ return {
       })
 
       -- biome: diagnostics, lint fixes, and formatting (see BufWritePre autocmd below)
+      -- Override root_dir to only attach when biome.json/biome.jsonc exists.
+      -- nvim-lspconfig's default also matches '@biomejs/biome' in package.json devDependencies,
+      -- causing biome to attach to eslint-only projects that have biome installed as a dep.
       vim.lsp.config("biome", {
         capabilities = capabilities,
+        root_dir = function(bufnr, on_dir)
+          local root = vim.fs.root(bufnr, { "biome.json", "biome.jsonc" })
+          if root then
+            on_dir(root)
+          end
+        end,
       })
 
       -- eslint: diagnostics and lint fixes for non-biome projects
