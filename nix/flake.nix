@@ -29,6 +29,7 @@
           modules = [
             ./hosts/htpc
             sops-nix.nixosModules.sops
+            { sops.package = sops-nix.packages.x86_64-linux.sops-install-secrets; }
             home-manager.nixosModules.home-manager
             {
               home-manager.useGlobalPkgs = true;

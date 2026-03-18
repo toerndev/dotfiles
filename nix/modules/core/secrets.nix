@@ -18,17 +18,4 @@
     owner = "caddy";
   };
 
-  sops.templates."ddclient-conf" = {
-    content = ''
-      daemon=300
-      use=web, web=https://checkip.amazonaws.com/
-      ssl=yes
-      protocol=cloudflare
-      zone=datasvard.com
-      login=token
-      password=${config.sops.placeholder.ddclient_password}
-      datasvard.com
-    '';
-    owner = "ddclient";
-  };
 }

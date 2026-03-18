@@ -2,6 +2,13 @@
 {
   services.ddclient = {
     enable = true;
-    configFile = config.sops.templates."ddclient-conf".path;
+    protocol = "cloudflare";
+    zone = "datasvard.com";
+    username = "token";
+    domains = [ "datasvard.com" ];
+    use = "web, web=https://checkip.amazonaws.com/";
+    ssl = true;
+    interval = "5min";
+    passwordFile = config.sops.secrets.ddclient_password.path;
   };
 }
