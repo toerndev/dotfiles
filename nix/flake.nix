@@ -1,9 +1,9 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     home-manager = {
-      url = "github:nix-community/home-manager/release-24.11";
+      url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     deploy-rs = {
@@ -12,7 +12,7 @@
     };
     sops-nix = {
       url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -29,7 +29,6 @@
           modules = [
             ./hosts/htpc
             sops-nix.nixosModules.sops
-            { sops.package = sops-nix.packages.x86_64-linux.sops-install-secrets; }
             home-manager.nixosModules.home-manager
             {
               home-manager.useGlobalPkgs = true;

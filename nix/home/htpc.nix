@@ -1,4 +1,4 @@
-{ config, pkgs, lib, inputs, ... }:
+{ config, pkgs, inputs, ... }:
 
 {
   home.username = "htpc-user";
@@ -36,17 +36,8 @@
     </profiles>
   '';
 
-  nixpkgs.config.allowUnfree = true;
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-    "libretro-snes9x"
-  ];
-
   home.packages = with pkgs; [
-    (retroarch.override {
-      cores = with libretro; [
-        snes9x
-      ];
-    })
+    (retroarch.withCores (cores: with cores; [ snes9x ]))
   ];
 
 #   home.file.".config/retroarch/retroarch.cfg".text = ''

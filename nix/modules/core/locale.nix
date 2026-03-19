@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-unstable, ... }:
+{ config, pkgs, ... }:
 {
   console.useXkbConfig = true;
   services.xserver.xkb = {
@@ -34,7 +34,7 @@
     gcc
     git
     github-cli
-    pkgs-unstable.neovim
+    neovim
   ];
 
   environment.variables.EDITOR = "nvim";

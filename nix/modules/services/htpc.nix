@@ -4,10 +4,10 @@
     enable = true;
     enable32Bit = true;  # Required for Steam
     extraPackages = with pkgs; [
-      mesa.drivers
+      mesa
       libdrm
       libvdpau-va-gl
-      vaapiVdpau
+      libva-vdpau-driver
     ];
     extraPackages32 = with pkgs; [
       driversi686Linux.mesa
@@ -20,7 +20,7 @@
     alsa.support32Bit = true;  # for Steam
     pulse.enable = true;
   };
-  hardware.pulseaudio.enable = false;
+  services.pulseaudio.enable = false;
 
   services.seatd.enable = true;
 

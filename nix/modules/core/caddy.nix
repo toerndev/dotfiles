@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-unstable, lib, ... }:
+{ config, pkgs, lib, ... }:
 {
   services.caddy = {
     enable = true;
@@ -7,7 +7,7 @@
     # To get the correct vendorHash: set hash = lib.fakeHash, run
     #   nix build .#nixosConfigurations.htpc.config.services.caddy.package
     # then replace lib.fakeHash with the hash nix reports.
-    package = pkgs-unstable.caddy.withPlugins {
+    package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/cloudflare@v0.0.0-20251204174556-6dc1fbb7e925" ];
       hash = "sha256-1iH+Q1XVoAieIl+wA6Ywk1qLhUEwhM1+fTURGCp9CKw=";
     };
