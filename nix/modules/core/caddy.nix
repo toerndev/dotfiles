@@ -12,7 +12,7 @@
       hash = "sha256-1iH+Q1XVoAieIl+wA6Ywk1qLhUEwhM1+fTURGCp9CKw=";
     };
 
-    # Unix socket instead of "admin off" — Caddy's reload mechanism
+    # Unix socket instead of "admin off". Caddy's reload mechanism
     # sends the new config via the admin API, so it must be reachable.
     globalConfig = "admin unix//run/caddy/admin.sock";
 
@@ -57,7 +57,7 @@
 
   networking.firewall.allowedTCPPorts = [ 80 443 ];
 
-  # Sandbox caddy loopback access — only allow backends it proxies to.
+  # Sandbox caddy loopback access: only allow backends it proxies to.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT

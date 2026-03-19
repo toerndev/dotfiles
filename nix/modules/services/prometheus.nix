@@ -16,6 +16,10 @@
         job_name = "node";
         static_configs = [{ targets = [ "127.0.0.1:9100" ]; }];
       }
+      {
+        job_name = "endlessh-go";
+        static_configs = [{ targets = [ "127.0.0.1:2112" ]; }];
+      }
     ];
   };
 
@@ -23,11 +27,13 @@
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -p tcp --dport 9100 -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -p tcp --dport 2112 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -j REJECT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner prometheus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner prometheus -o lo -p tcp --dport 9100 -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner prometheus -o lo -p tcp --dport 2112 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner prometheus -o lo -j REJECT || true
   '';
 }

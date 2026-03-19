@@ -39,6 +39,6 @@
     ];
   };
 
-  # Bind to localhost only — Caddy reverse-proxies on the WG vhost.
+  # Bind to localhost only, Caddy reverse-proxies on the WG vhost.
   systemd.services.homepage-dashboard.environment.HOSTNAME = "127.0.0.1";
 }

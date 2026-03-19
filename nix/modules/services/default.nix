@@ -9,5 +9,6 @@
     ./loki.nix
     ./prometheus.nix
     ./alloy.nix
+    ./endlessh.nix
   ];
 }

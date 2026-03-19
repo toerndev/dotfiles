@@ -29,7 +29,7 @@
     ];
   };
 
-  # Sandbox grafana loopback access — allow responses to incoming connections
+  # Sandbox grafana loopback access. Allow responses to incoming connections
   # (Caddy reverse proxy) and outbound to Loki and Prometheus only.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner grafana -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT

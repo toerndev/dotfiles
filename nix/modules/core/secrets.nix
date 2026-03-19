@@ -13,7 +13,7 @@
 
   sops.secrets.wifi_psk = {};
 
-  # Rendered env file for Caddy's EnvironmentFile — avoids exposing the token
+  # Rendered env file for Caddy's EnvironmentFile, avoids exposing the token
   # in the process environment of other services.
   sops.templates."caddy-cloudflare-env" = {
     content = "CF_API_TOKEN=${config.sops.placeholder.cloudflare_api_token}";

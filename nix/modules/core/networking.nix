@@ -22,6 +22,6 @@
 
   networking.firewall = {
     enable = true;
-    allowedTCPPorts = [ 22 8096 ];  # SSH + Jellyfin
+    allowedTCPPorts = [ 8096 ];  # Jellyfin; port 22 opened by endlessh-go
   };
 }

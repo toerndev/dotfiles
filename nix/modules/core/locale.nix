@@ -34,12 +34,18 @@
     gcc
     git
     github-cli
-    neovim
+    gnumake
+    ripgrep
   ];
 
-  environment.variables.EDITOR = "nvim";
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true;
+  };
+
   environment.variables.COLORTERM = "truecolor";
   environment.shellAliases = {
+    gd = "git diff";
     gs = "git status";
     vim = "nvim";
   };
