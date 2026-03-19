@@ -3,14 +3,14 @@
   users.users.alloy = {
     isSystemUser = true;
     group = "alloy";
-    extraGroups = [ "caddy" ];
+    extraGroups = [ "caddy" "systemd-journal" ];
   };
   users.groups.alloy = { };
 
   services.alloy = {
     enable = true;
     configPath = pkgs.writeText "alloy-config.alloy" ''
-      // Caddy access logs → Loki
+      // Caddy access logs -> Loki
       local.file_match "caddy_logs" {
         path_targets = [{"__path__" = "/var/log/caddy/*.log"}]
       }
@@ -18,6 +18,16 @@
       loki.source.file "caddy" {
         targets    = local.file_match.caddy_logs.targets
         forward_to = [loki.write.local.receiver]
+      }
+
+      // endlessh-go systemd journal -> Loki
+      loki.source.journal "endlessh" {
+        matches    = "_SYSTEMD_UNIT=endlessh-go.service"
+        forward_to = [loki.write.local.receiver]
+        labels = {
+          job  = "endlessh-go",
+          unit = "endlessh-go.service",
+        }
       }
 
       loki.write "local" {

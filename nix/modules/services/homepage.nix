@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 {
   services.homepage-dashboard = {
     enable = true;
@@ -33,12 +33,16 @@
         resources = {
           cpu = true;
           memory = true;
-          disk = "/";
+          disk = [ "/" "/media" ];
         };
       }
     ];
   };
 
   # Bind to localhost only, Caddy reverse-proxies on the WG vhost.
-  systemd.services.homepage-dashboard.environment.HOSTNAME = "127.0.0.1";
+  # HOMEPAGE_ALLOWED_HOSTS allows the Host header Caddy forwards (10.100.0.1).
+  systemd.services.homepage-dashboard.environment = {
+    HOSTNAME = "127.0.0.1";
+    HOMEPAGE_ALLOWED_HOSTS = lib.mkForce "localhost:8082,127.0.0.1:8082,10.100.0.1";
+  };
 }
