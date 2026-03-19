@@ -13,7 +13,8 @@
     zone = "datasvard.com";
     username = "token";
     domains = [ "datasvard.com" ];
-    usev4 = "web, web=https://checkip.amazonaws.com/";
+    usev4 = "webv4, webv4=https://checkip.amazonaws.com/";
+    usev6 = "";
     ssl = true;
     interval = "5min";
     passwordFile = config.sops.secrets.ddclient_password.path;
