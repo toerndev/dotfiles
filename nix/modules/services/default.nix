@@ -10,5 +10,6 @@
     ./prometheus.nix
     ./alloy.nix
     ./endlessh.nix
+    ./crowdsec.nix
   ];
 }

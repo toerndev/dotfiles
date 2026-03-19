@@ -12,6 +12,18 @@ let
         hash = "sha256-Kf4cFWxlu1q+0G61tkmb/yF1MMbO2jL7uJwLY2DYemE=";
       }))
   );
+
+  # Dashboard 19010 (CrowdSec Overview) uses ${DS_PROMETHEUS} — same substitution
+  # pattern as the endlessh-go dashboard.
+  crowdsecDashboards = pkgs.writeTextDir "crowdsec.json" (
+    builtins.replaceStrings
+      [ ("$" + "{DS_PROMETHEUS}") ]
+      [ "prometheus" ]
+      (builtins.readFile (pkgs.fetchurl {
+        url = "https://grafana.com/api/dashboards/19010/revisions/latest/download";
+        hash = "sha256-REXluCzUYoueiOy3b6RPbbLCEet94+a/UfoU6OE9F40=";
+      }))
+  );
 in
 {
   services.grafana = {
@@ -48,6 +60,10 @@ in
       {
         name = "endlessh-go";
         options.path = endlesshDashboards;
+      }
+      {
+        name = "crowdsec";
+        options.path = crowdsecDashboards;
       }
     ];
   };
