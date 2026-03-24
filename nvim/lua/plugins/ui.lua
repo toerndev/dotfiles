@@ -2,7 +2,17 @@ return {
   {
     "echasnovski/mini.surround",
     event = "VeryLazy",
-    opts = {},
+    opts = {
+      mappings = {
+        add = "gza",
+        delete = "gzd",
+        replace = "gzr",
+        find = "gzf",
+        find_left = "gzF",
+        highlight = "gzh",
+        update_n_lines = "gzn",
+      },
+    },
   },
   {
     "echasnovski/mini.icons",
