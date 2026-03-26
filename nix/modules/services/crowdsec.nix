@@ -30,10 +30,7 @@
       }
       {
         source = "file";
-        filenames = [
-          "/var/log/caddy/access-public.log"
-          "/var/log/caddy/access-wg.log"
-        ];
+        filenames = [ "/var/log/caddy/*.log" ];
         labels.type = "caddy";
       }
     ];

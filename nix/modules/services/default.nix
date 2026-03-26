@@ -11,5 +11,6 @@
     ./alloy.nix
     ./endlessh.nix
     ./crowdsec.nix
+    ./nextcloud.nix
   ];
 }

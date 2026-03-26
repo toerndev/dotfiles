@@ -13,6 +13,10 @@
 
   sops.secrets.wifi_psk = {};
 
+  sops.secrets.nextcloud_admin_password = {
+    owner = "nextcloud";
+  };
+
   # Rendered env file for Caddy's EnvironmentFile, avoids exposing the token
   # in the process environment of other services.
   sops.templates."caddy-cloudflare-env" = {
