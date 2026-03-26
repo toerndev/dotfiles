@@ -2,7 +2,7 @@
 {
   services.nextcloud = {
     enable = true;
-    package = pkgs.nextcloud31;
+    package = pkgs.nextcloud32;
     hostName = "cloud.datasvard.com";
 
     # Tell Nextcloud it is accessed over HTTPS (sets overwriteprotocol).
@@ -20,10 +20,15 @@
     config.adminuser = "admin";
 
     # Caddy reverse-proxies from 127.0.0.1 — trust X-Forwarded-For from there.
-    config.trustedProxies = [ "127.0.0.1" ];
+    settings.trusted_proxies = [ "127.0.0.1" ];
 
     maxUploadSize = "16G";
+    # configureRedis defaults to true — the module creates services.redis.servers.nextcloud
+    # and wires up the unix socket automatically.
   };
+
+  # The nextcloud module enables nginx by default; we use Caddy instead.
+  services.nginx.enable = false;
 
   # Allow Caddy to connect to the PHP-FPM unix socket.
   # The socket is at /run/phpfpm/nextcloud.sock; unix sockets are not subject
@@ -36,8 +41,7 @@
 
   # Caddy vhost for Nextcloud. Served publicly on cloud.datasvard.com with
   # DNS-01 ACME via the CF_API_TOKEN already in Caddy's EnvironmentFile.
-  # Add a CNAME cloud.datasvard.com → datasvard.com in Cloudflare (or update
-  # ddclient) so the domain resolves to this host's IP.
+  # Cloudflare A record for "cloud" must exist before ddclient can update it.
   services.caddy.virtualHosts."cloud.datasvard.com" = {
     extraConfig = ''
       root * ${config.services.nextcloud.package}
