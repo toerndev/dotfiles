@@ -12,5 +12,6 @@
     ./endlessh.nix
     ./crowdsec.nix
     ./nextcloud.nix
+    ./immich.nix
   ];
 }

@@ -25,6 +25,19 @@
     maxUploadSize = "16G";
     # configureRedis defaults to true — the module creates services.redis.servers.nextcloud
     # and wires up the unix socket automatically.
+
+    extraAppsEnable = true;
+    extraApps = with config.services.nextcloud.package.packages.apps; {
+      inherit
+        calendar
+        contacts
+        deck
+        music
+        news
+        notes
+        polls
+        tasks;
+    };
   };
 
   # The nextcloud module enables nginx by default; we use Caddy instead.
