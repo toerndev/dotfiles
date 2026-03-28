@@ -14,7 +14,16 @@
 
     # Unix socket instead of "admin off". Caddy's reload mechanism
     # sends the new config via the admin API, so it must be reachable.
-    globalConfig = "admin unix//run/caddy/admin.sock";
+    # trusted_proxies static 127.0.0.1: allow local services (notify_push) to set
+    # X-Forwarded-For without Caddy replacing it with the loopback IP. Without this,
+    # Caddy treats localhost connections as untrusted and overwrites XFF, breaking
+    # notify_push's self-test and its ability to forward real client IPs to Nextcloud.
+    globalConfig = ''
+      admin unix//run/caddy/admin.sock
+      servers {
+        trusted_proxies static 127.0.0.1
+      }
+    '';
 
     virtualHosts."datasvard.com" = {
       extraConfig = ''
@@ -58,15 +67,18 @@
   networking.firewall.allowedTCPPorts = [ 80 443 ];
 
   # Sandbox caddy loopback access: only allow backends it proxies to.
+  # The terminating REJECT for caddy loopback is defined in hosts/htpc/default.nix
+  # so it is always appended after all service-module ACCEPT rules regardless of
+  # import order (types.lines merges in evaluation order: core → services → host).
   networking.firewall.extraCommands = ''
+    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT
-    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -j REJECT
   '';
   networking.firewall.extraStopCommands = ''
+    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT || true
-    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -j REJECT || true
   '';
 
   systemd.services.caddy.serviceConfig = {

@@ -8,8 +8,8 @@ let
       [ ("$" + "{DS_PROMETHEUS}") ]
       [ "prometheus" ]
       (builtins.readFile (pkgs.fetchurl {
-        url = "https://grafana.com/api/dashboards/15156/revisions/latest/download";
-        hash = "sha256-Kf4cFWxlu1q+0G61tkmb/yF1MMbO2jL7uJwLY2DYemE=";
+        url = "https://grafana.com/api/dashboards/15156/revisions/16/download";
+        hash = "sha256-tM0qk1XieK7hkIY8llV8aozdq6zsqcrZ6+6d7u9njGQ=";
       }))
   );
 
@@ -20,7 +20,7 @@ let
       [ ("$" + "{DS_PROMETHEUS}") ]
       [ "prometheus" ]
       (builtins.readFile (pkgs.fetchurl {
-        url = "https://grafana.com/api/dashboards/19010/revisions/latest/download";
+        url = "https://grafana.com/api/dashboards/19010/revisions/1/download";
         hash = "sha256-REXluCzUYoueiOy3b6RPbbLCEet94+a/UfoU6OE9F40=";
       }))
   );

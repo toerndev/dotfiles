@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   services.nextcloud = {
     enable = true;
@@ -26,6 +26,13 @@
     # configureRedis defaults to true — the module creates services.redis.servers.nextcloud
     # and wires up the unix socket automatically.
 
+    # High-performance push backend. Starts nextcloud-notify_push.service bound to
+    # a unix socket (SOCKET_PATH=/run/nextcloud-notify_push/sock). Sync clients
+    # receive immediate change notifications instead of polling every 30 s.
+    # Caddy routes /push/* to the socket (see vhost below).
+    # Verify after deploy: sudo -u nextcloud nextcloud-occ notify_push:self-test
+    notify_push.enable = true;
+
     extraAppsEnable = true;
     extraApps = with config.services.nextcloud.package.packages.apps; {
       inherit
@@ -43,6 +50,14 @@
   # The nextcloud module enables nginx by default; we use Caddy instead.
   services.nginx.enable = false;
 
+  # notify_push validates tokens by calling NEXTCLOUD_URL (set by the NixOS module
+  # to https://cloud.datasvard.com). From the server itself that request goes via
+  # NAT hairpinning and arrives at Caddy from the router IP (192.168.1.1), which
+  # is not a trusted proxy — Nextcloud rejects it. Override NEXTCLOUD_URL to the
+  # loopback vhost below so the push server reaches PHP-FPM directly via 127.0.0.1,
+  # which IS a trusted proxy.
+  systemd.services.nextcloud-notify_push.environment.NEXTCLOUD_URL = lib.mkForce "http://127.0.0.1";
+
   # Allow Caddy to connect to the PHP-FPM unix socket.
   # The socket is at /run/phpfpm/nextcloud.sock; unix sockets are not subject
   # to the loopback iptables OUTPUT rules, so no firewall changes are needed.
@@ -51,6 +66,28 @@
     "listen.group" = "caddy";
   };
   users.users.caddy.extraGroups = [ "nextcloud" ];
+  # extraGroups only takes effect on process start, not reload. Declaring it
+  # here forces a caddy restart (not just reload) when first applied, and
+  # ensures the group is in the service's credentials on every subsequent boot.
+  systemd.services.caddy.serviceConfig.SupplementaryGroups = "nextcloud";
+
+  # Loopback-only HTTP vhost so notify_push can reach Nextcloud PHP without going
+  # through NAT hairpinning. No TLS, no public exposure — loopback only.
+  # trusted_proxies for loopback is set globally in caddy.nix (servers block) because
+  # Caddy does not support trusted_proxies as a site-level directive.
+  services.caddy.virtualHosts."http://127.0.0.1" = {
+    listenAddresses = [ "127.0.0.1" ];
+    extraConfig = ''
+      root * ${config.services.nextcloud.package}
+
+      handle {
+        php_fastcgi unix//run/phpfpm/nextcloud.sock {
+          env front_controller_active true
+        }
+        file_server
+      }
+    '';
+  };
 
   # Caddy vhost for Nextcloud. Served publicly on cloud.datasvard.com with
   # DNS-01 ACME via the CF_API_TOKEN already in Caddy's EnvironmentFile.
@@ -75,11 +112,19 @@
       }
       respond @forbidden 404
 
-      php_fastcgi unix//run/phpfpm/nextcloud.sock {
-        env front_controller_active true
+      # notify_push WebSocket (/push/ws) and event endpoint (/push/event).
+      # Must precede the catch-all handle block so these paths are not passed to PHP.
+      # NixOS module binds notify_push to a unix socket (SOCKET_PATH env), not TCP.
+      handle /push/* {
+        reverse_proxy unix//run/nextcloud-notify_push/sock
       }
 
-      file_server
+      handle {
+        php_fastcgi unix//run/phpfpm/nextcloud.sock {
+          env front_controller_active true
+        }
+        file_server
+      }
 
       log {
         output file /var/log/caddy/access-nextcloud.log {
