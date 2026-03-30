@@ -13,5 +13,6 @@
     ./crowdsec.nix
     ./nextcloud.nix
     ./immich.nix
+    ./wstunnel.nix
   ];
 }
