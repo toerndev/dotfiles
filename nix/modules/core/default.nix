@@ -11,5 +11,12 @@
     ./ssh.nix
     ./users.nix
     ./wireguard.nix
+    ./wstunnel.nix
+    ./alloy.nix
+    ./crowdsec.nix
+    ./endlessh.nix
+    ./grafana.nix
+    ./loki.nix
+    ./prometheus.nix
   ];
 }
