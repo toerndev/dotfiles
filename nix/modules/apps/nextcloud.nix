@@ -1,4 +1,14 @@
 { config, lib, pkgs, ... }:
+let
+  # The NixOS nextcloud module stores extraApps in a separate nix store path and
+  # configures Nextcloud to generate URLs with the /nix-apps/ prefix. The nginx
+  # module wires a location block for /nix-apps/ automatically; since we use Caddy
+  # we must replicate that: build a single directory with each app as a subdirectory
+  # and serve it from a dedicated handle block.
+  appsStore = pkgs.linkFarm "nextcloud-extra-apps"
+    (lib.mapAttrsToList (name: pkg: { inherit name; path = pkg; })
+      config.services.nextcloud.extraApps);
+in
 {
   services.nextcloud = {
     enable = true;
@@ -117,6 +127,16 @@
       # NixOS module binds notify_push to a unix socket (SOCKET_PATH env), not TCP.
       handle /push/* {
         reverse_proxy unix//run/nextcloud-notify_push/sock
+      }
+
+      # Extra apps (calendar, contacts, notes, etc.) live in a separate nix store
+      # path - not under ${config.services.nextcloud.package}. Nextcloud generates
+      # /nix-apps/<appname>/... URLs for them; serve those files directly without
+      # going through PHP.
+      handle /nix-apps/* {
+        uri strip_prefix /nix-apps
+        root * ${appsStore}
+        file_server
       }
 
       handle {
