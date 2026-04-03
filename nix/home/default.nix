@@ -11,6 +11,8 @@
     enable = true;
     initExtra = ''
       export ANTHROPIC_API_KEY=$(cat ~/.anthropic_key)
+      export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+      export PATH="$HOME/.npm-global/bin:$PATH"
     '';
   };
 
@@ -25,6 +27,8 @@
   };
 
   home.packages = with pkgs; [
+    nodejs_24
+    python3
     pkgs-unstable.claude-code
   ];
 }
