@@ -31,6 +31,7 @@
     bat
     bc
     curl
+    fd
     gcc
     git
     github-cli
