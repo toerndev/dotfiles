@@ -64,7 +64,8 @@
     };
   };
 
-  networking.firewall.allowedTCPPorts = [ 80 443 ];
+  networking.firewall.allowedTCPPorts = [ 443 ];
+  networking.firewall.interfaces.wg0.allowedTCPPorts = [ 80 ];
 
   # Sandbox caddy loopback access: only allow backends it proxies to.
   # The terminating REJECT for caddy loopback is defined in hosts/htpc/default.nix

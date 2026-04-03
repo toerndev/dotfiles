@@ -15,4 +15,8 @@
   };
 
   networking.firewall.allowedUDPPorts = [ 51820 ];
+
+  # Vite dev server - WG only, no Caddy involvement.
+  # Bind with: vite --host 10.100.0.1
+  networking.firewall.interfaces.wg0.allowedTCPPorts = [ 5173 ];
 }

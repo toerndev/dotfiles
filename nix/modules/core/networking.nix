@@ -19,9 +19,4 @@
       ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
     };
   };
-
-  networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ 8096 ];  # Jellyfin; port 22 opened by endlessh-go
-  };
 }
