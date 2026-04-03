@@ -10,10 +10,18 @@
   programs.bash = {
     enable = true;
     initExtra = ''
-      export ANTHROPIC_API_KEY=$(cat ~/.anthropic_key)
       export NPM_CONFIG_PREFIX="$HOME/.npm-global"
       export PATH="$HOME/.npm-global/bin:$PATH"
     '';
+  };
+
+  programs.tmux = {
+    enable = true;
+    terminal = "tmux-256color";
+    historyLimit = 50000;
+    escapeTime = 0;
+    baseIndex = 1;
+    prefix = "C-q";
   };
 
   services.ssh-agent.enable = true;
