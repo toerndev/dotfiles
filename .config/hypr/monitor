@@ -2,24 +2,65 @@
 mode=$1
 
 if [[ "$1" == "ext" ]]; then
-  hyprctl keyword monitor HDMI-A-1,preferred,0x0,1
-  hyprctl keyword monitor eDP-1,disable
+  # Use only the external monitor. Both keywords sent in one --batch call so
+  # Hyprland validates the layout once at the end, avoiding a transient overlap
+  # warning that would occur if they were applied sequentially.
+  hyprctl --batch "keyword monitor HDMI-A-1,preferred,0x0,1 ; keyword monitor eDP-1,disable"
+  ~/.config/waybar/waybar.sh &
+
 elif [[ "$1" == "laptop" ]]; then
-  hyprctl keyword monitor eDP-1,preferred,0x0,1
-  hyprctl keyword monitor HDMI-A-1,disable
+  # Use only the built-in display (e.g. when HDMI is unplugged).
+  hyprctl --batch "keyword monitor eDP-1,preferred,0x0,1 ; keyword monitor HDMI-A-1,disable"
+  ~/.config/waybar/waybar.sh &
+
 elif [[ "$1" == "stack" ]]; then
-  hyprctl keyword monitor HDMI-A-1,preferred,0x0,1
-  hyprctl keyword monitor eDP-1,preferred,auto-down,1
+  # Place HDMI-A-1 above eDP-1. Two separate calls are required because
+  # `auto-down` (which positions eDP-1 below HDMI-A-1) only resolves correctly
+  # after HDMI-A-1 has been fully initialized with its preferred resolution.
+  # eDP-1 is disabled first so the initial call has no overlap at 0x0.
+  hyprctl --batch "keyword monitor eDP-1,disable ; keyword monitor HDMI-A-1,preferred,0x0,1"
+  # Query HDMI-A-1's logical height (physical pixels divided by scale factor)
+  # and use it as the explicit Y offset for eDP-1, since `auto-down` is
+  # unreliable when applied via hyprctl keyword.
+  hdmi_h=$(hyprctl monitors -j | jq -r '[.[] | select(.name=="HDMI-A-1")] | first | .height / .scale | floor')
+  hyprctl keyword monitor "eDP-1,preferred,0x${hdmi_h},1"
+  ~/.config/waybar/waybar.sh &
+
 elif [[ "$1" == "mirror" ]]; then
-  hyprctl keyword monitor eDP-1,preferred,0x0,1
-  hyprctl keyword monitor HDMI-A-1,preferred,auto,1,mirror,eDP-1
+  # Mirror HDMI-A-1 onto eDP-1 at whatever resolution eDP-1 prefers.
+  hyprctl --batch "keyword monitor eDP-1,preferred,0x0,1 ; keyword monitor HDMI-A-1,preferred,auto,1,mirror,eDP-1"
+  ~/.config/waybar/waybar.sh &
+
 elif [[ "$1" == "mirror_fhd" ]]; then
-  hyprctl keyword monitor eDP-1,1920x1080@120,0x0,1
-  hyprctl keyword monitor HDMI-A-1,1920x1080,0x0,1,mirror,eDP-1
+  # Mirror at a fixed 1920x1080 on both outputs, useful when the external
+  # display doesn't support the laptop's native resolution.
+  hyprctl --batch "keyword monitor eDP-1,1920x1080@120,0x0,1 ; keyword monitor HDMI-A-1,1920x1080,0x0,1,mirror,eDP-1"
+  ~/.config/waybar/waybar.sh &
+
 elif [[ "$1" == "boot" ]]; then
-  if hyprctl monitors | grep -q "HDMI-A-1"; then
-    monitor ext
+  # `hyprland.conf` disables HDMI-A-1 by default, so `hyprctl monitors`
+  # (active only) would never list it. `monitors all` includes disabled
+  # outputs, allowing detection of a cable that was already plugged in at boot.
+  if hyprctl monitors all | grep -q "HDMI-A-1"; then
+    monitor stack
   else
     monitor laptop
   fi
+
+elif [[ "$1" == "watch" ]]; then
+  # Subscribe to Hyprland's event socket and react to HDMI hot-plug events.
+  # This runs as a daemon (via exec-once in hyprland.conf) so that plugging
+  # or unplugging the cable switches layouts automatically without manual
+  # intervention.
+  socat - "UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" |
+    while IFS= read -r line; do
+      case "$line" in
+        monitoradded\>\>HDMI-A-1)
+          monitor stack
+          ;;
+        monitorremoved\>\>HDMI-A-1)
+          monitor laptop
+          ;;
+      esac
+    done
 fi
