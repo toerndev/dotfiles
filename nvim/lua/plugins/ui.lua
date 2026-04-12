@@ -36,6 +36,27 @@ return {
   {
     "HiPhish/rainbow-delimiters.nvim",
     event = "VeryLazy",
+    config = function()
+      -- The plugin's own FileType autocmd only guards against get_parser
+      -- *throwing*, but newer Neovim can return nil without throwing (e.g.
+      -- for nui popup/split buffers).  Clear the upstream autocmd and
+      -- re-register it with an explicit nil-parser guard.
+      local augroup = vim.api.nvim_create_augroup("TSRainbowDelimits", { clear = true })
+      vim.api.nvim_create_autocmd("FileType", {
+        group = augroup,
+        callback = function(args)
+          local rd_config = require("rainbow-delimiters.config")
+          local lib = require("rainbow-delimiters.lib")
+          local lang = vim.treesitter.language.get_lang(args.match)
+          local bufnr = args.buf
+          if not rd_config.enabled_for(lang) then return end
+          if not rd_config.enabled_when(bufnr) then return end
+          local ok, parser = pcall(vim.treesitter.get_parser, bufnr, lang)
+          if not ok or not parser then return end
+          lib.attach(bufnr)
+        end,
+      })
+    end,
   },
   {
     "nvim-lualine/lualine.nvim",
