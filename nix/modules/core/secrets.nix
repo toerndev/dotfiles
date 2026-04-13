@@ -17,6 +17,23 @@
     owner = "nextcloud";
   };
 
+  # Directus JWT signing key — add to secrets/secrets.yaml before deploying.
+  sops.secrets.directus_secret = {};
+
+  # Directus bootstrap admin password.
+  sops.secrets.cms_admin_password = {
+    owner = "directus";
+  };
+
+  # Rendered env file injected as Directus EnvironmentFile.
+  sops.templates."directus-env" = {
+    content = ''
+      SECRET=${config.sops.placeholder.directus_secret}
+      ADMIN_PASSWORD=${config.sops.placeholder.cms_admin_password}
+    '';
+    owner = "directus";
+  };
+
   # Rendered env file for Caddy's EnvironmentFile, avoids exposing the token
   # in the process environment of other services.
   sops.templates."caddy-cloudflare-env" = {

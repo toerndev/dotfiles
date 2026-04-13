@@ -35,7 +35,7 @@
   };
 
   home.packages = with pkgs; [
-    nodejs_24
+    nodejs_22
     pkgs-unstable.claude-code
     python3
     ssh-to-age
