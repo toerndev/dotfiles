@@ -36,7 +36,9 @@
 
   home.packages = with pkgs; [
     nodejs_24
-    python3
     pkgs-unstable.claude-code
+    python3
+    ssh-to-age
+    sops
   ];
 }
