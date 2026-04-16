@@ -12,4 +12,10 @@
     };
     openFirewall = true;
   };
+
+  # Wait for the LAN address to be assigned before binding.
+  systemd.services.endlessh-go = {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+  };
 }

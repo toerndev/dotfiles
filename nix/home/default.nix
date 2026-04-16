@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-unstable, lib, inputs, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 {
   home.username = "losipai";
@@ -9,6 +9,11 @@
 
   programs.bash = {
     enable = true;
+    shellAliases = {
+      gd = "git diff";
+      gs = "git status";
+      vim = "nvim";
+    };
     initExtra = ''
       export NPM_CONFIG_PREFIX="$HOME/.npm-global"
       export PATH="$HOME/.npm-global/bin:$PATH"
@@ -36,8 +41,7 @@
 
   home.packages = with pkgs; [
     nodejs_22
-    pkgs-unstable.claude-code
-    python3
+    inputs.claude-code.packages.x86_64-linux.claude-code
     ssh-to-age
     sops
   ];

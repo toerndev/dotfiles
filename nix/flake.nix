@@ -1,7 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    claude-code.url = "github:sadjow/claude-code-nix";
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -16,13 +16,8 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, deploy-rs, sops-nix, ... }@inputs:
-    let
-      pkgs-unstable = import nixpkgs-unstable {
-        system = "x86_64-linux";
-        config.allowUnfree = true;
-      };
-    in {
+  outputs = { self, nixpkgs, claude-code, home-manager, deploy-rs, sops-nix, ... }@inputs:
+    {
       nixosConfigurations = {
         htpc = nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
@@ -36,10 +31,10 @@
               home-manager.backupFileExtension = "backup";
               home-manager.users.losipai = import ./home/default.nix;
               home-manager.users.htpc-user = import ./home/htpc.nix;
-              home-manager.extraSpecialArgs = { inherit inputs pkgs-unstable; };
+              home-manager.extraSpecialArgs = { inherit inputs; };
             }
           ];
-          specialArgs = { inherit inputs pkgs-unstable; };
+          specialArgs = { inherit inputs; };
         };
       };
 

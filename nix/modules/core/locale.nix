@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ ... }:
 {
   console.useXkbConfig = true;
   services.xserver.xkb = {
@@ -24,30 +24,5 @@
     LC_PAPER = "sv_SE.UTF-8";
     LC_TELEPHONE = "sv_SE.UTF-8";
     LC_TIME = "sv_SE.UTF-8";
-  };
-
-  environment.systemPackages = with pkgs; [
-    bash
-    bat
-    bc
-    curl
-    fd
-    gcc
-    git
-    github-cli
-    gnumake
-    ripgrep
-  ];
-
-  programs.neovim = {
-    enable = true;
-    defaultEditor = true;
-  };
-
-  environment.variables.COLORTERM = "truecolor";
-  environment.shellAliases = {
-    gd = "git diff";
-    gs = "git status";
-    vim = "nvim";
   };
 }

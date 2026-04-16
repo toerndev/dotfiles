@@ -4,6 +4,7 @@
     ./boot.nix
     ./locale.nix
     ./networking.nix
+    ./packages.nix
     ./secrets.nix
     ./caddy.nix
     ./ddclient.nix

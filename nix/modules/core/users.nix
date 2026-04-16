@@ -8,6 +8,7 @@
 
   users.users.losipai = {
     isNormalUser = true;
+    linger = true;
     extraGroups = [ "networkmanager" "wheel" ];
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOvmccLuoKuu0hxlj+sGean56+UzXx/cXwq3V14F89jh personal"

@@ -68,6 +68,12 @@ in
   # which IS a trusted proxy.
   systemd.services.nextcloud-notify_push.environment.NEXTCLOUD_URL = lib.mkForce "http://127.0.0.1";
 
+  # The setup service starts before DNS is ready at boot; wait for network-online.
+  systemd.services.nextcloud-notify_push_setup = {
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+  };
+
   # Allow Caddy to connect to the PHP-FPM unix socket.
   # The socket is at /run/phpfpm/nextcloud.sock; unix sockets are not subject
   # to the loopback iptables OUTPUT rules, so no firewall changes are needed.
