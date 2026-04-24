@@ -11,6 +11,13 @@
       ipv4.method = "auto";
       ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
     };
+    profiles."wifi-new" = {
+      connection = { id = "wifi-new"; type = "wifi"; autoconnect-priority = "1"; };
+      wifi = { mode = "infrastructure"; ssid = "Apt 50, Sadovaya 302-bis"; };
+      wifi-security = { auth-alg = "open"; key-mgmt = "wpa-psk"; psk = "$WIFI_PSK"; };
+      ipv4.method = "auto";
+      ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
+    };
     profiles."wifi-2.4" = {
       connection = { id = "wifi-2.4"; type = "wifi"; autoconnect-priority = "5"; };
       wifi = { mode = "infrastructure"; ssid = "wpa_supplicant_2.4"; };

@@ -44,4 +44,6 @@
   # Rendered env file for NetworkManager ensureProfiles variable substitution.
   sops.templates."wifi-env".content = "WIFI_PSK=${config.sops.placeholder.wifi_psk}";
 
+  sops.secrets.borg_passphrase = {};
+
 }

@@ -19,5 +19,6 @@
     ./grafana.nix
     ./loki.nix
     ./prometheus.nix
+    ./backup.nix
   ];
 }
