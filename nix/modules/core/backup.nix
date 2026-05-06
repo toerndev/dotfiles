@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 {
   fileSystems."/backup" = {
     device = "/dev/disk/by-label/backup";
@@ -26,8 +26,8 @@
         prune.keep.last = 3;
         preHook = ''
           install -dm 700 /tmp/borg-db-dump
-          su -s /bin/sh postgres -c "${psql}/bin/pg_dump nextcloud" > /tmp/borg-db-dump/nextcloud.sql
-          su -s /bin/sh postgres -c "${psql}/bin/pg_dump immich"    > /tmp/borg-db-dump/immich.sql
+          ${pkgs.util-linux}/bin/runuser -u postgres -- ${psql}/bin/pg_dump nextcloud > /tmp/borg-db-dump/nextcloud.sql
+          ${pkgs.util-linux}/bin/runuser -u postgres -- ${psql}/bin/pg_dump immich    > /tmp/borg-db-dump/immich.sql
           cp /var/lib/directus/database.sqlite              /tmp/borg-db-dump/directus.sqlite
           cp ${config.services.grafana.dataDir}/grafana.db  /tmp/borg-db-dump/grafana.db
           cp /var/lib/jellyfin/data/jellyfin.db             /tmp/borg-db-dump/jellyfin.db

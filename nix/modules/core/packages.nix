@@ -10,6 +10,8 @@
     git
     github-cli
     gnumake
+    gawk
+    gnused
     python3
     ripgrep
   ];

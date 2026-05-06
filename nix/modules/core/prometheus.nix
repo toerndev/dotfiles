@@ -1,9 +1,23 @@
-{ ... }:
+{ pkgs, ... }:
 {
   services.prometheus = {
     enable = true;
     listenAddress = "127.0.0.1";
     port = 9090;
+
+    ruleFiles = [
+      (pkgs.writeText "endlessh-rules.yaml" ''
+        groups:
+          - name: endlessh
+            rules:
+              - record: endlessh_bots_01d
+                expr: floor(increase(endlessh_client_closed_count_total[1d]))
+              - record: endlessh_bots_07d
+                expr: floor(increase(endlessh_client_closed_count_total[7d]))
+              - record: endlessh_bots_30d
+                expr: floor(increase(endlessh_client_closed_count_total[30d]))
+      '')
+    ];
 
     exporters.node = {
       enable = true;
