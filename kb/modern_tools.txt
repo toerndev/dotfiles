@@ -1,4 +1,0 @@
-ezv (ls)
-zoxide (cd)
-bat (cat)
-fzf (find)
