@@ -46,10 +46,6 @@
     virtualHosts."http://10.100.0.1" = {
       listenAddresses = [ "10.100.0.1" ];
       extraConfig = ''
-        handle /grafana* {
-          reverse_proxy localhost:3000
-        }
-
         handle {
           reverse_proxy localhost:8082
         }
@@ -74,12 +70,10 @@
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT
-    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT || true
-    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 3000 -j ACCEPT || true
   '';
 
   systemd.services.caddy.serviceConfig = {

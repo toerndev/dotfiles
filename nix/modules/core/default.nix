@@ -16,7 +16,6 @@
     ./alloy.nix
     ./crowdsec.nix
     ./endlessh.nix
-    ./grafana.nix
     ./loki.nix
     ./prometheus.nix
     ./backup.nix

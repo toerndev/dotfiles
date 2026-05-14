@@ -46,7 +46,7 @@
     ];
   };
 
-  # Prometheus: respond to Grafana queries (ESTABLISHED), scrape node_exporter, reject rest.
+  # Prometheus: respond to incoming queries (ESTABLISHED), scrape targets, reject rest.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner prometheus -o lo -p tcp --dport 9100 -j ACCEPT
