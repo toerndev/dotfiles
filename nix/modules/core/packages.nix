@@ -12,6 +12,7 @@
     gnumake
     gawk
     gnused
+    jq
     python3
     ripgrep
   ];

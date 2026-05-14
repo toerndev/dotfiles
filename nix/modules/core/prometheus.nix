@@ -38,6 +38,11 @@
         job_name = "crowdsec";
         static_configs = [{ targets = [ "127.0.0.1:6060" ]; }];
       }
+      {
+        job_name = "openwrt";
+        scrape_interval = "30s";
+        static_configs = [{ targets = [ "192.168.1.1:9100" ]; }];
+      }
     ];
   };
 
