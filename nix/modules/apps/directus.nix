@@ -97,7 +97,7 @@
 
   # python3Packages.setuptools provides distutils for node-gyp native build fallback.
   # On NixOS 25.11 with nix-ld enabled, prebuild-install downloads pre-built binaries
-  # for Node.js 22 LTS (argon2, better-sqlite3, isolated-vm, sharp) which run via nix-ld.
+  # for Node.js 22 LTS (argon2, isolated-vm, sharp, sqlite3) which run via nix-ld.
   # Source compilation is only a fallback; gcc and gnumake already in core/locale.nix.
   environment.systemPackages = [ pkgs.python3Packages.setuptools ];
 
@@ -107,11 +107,13 @@
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8055 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner directus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner directus -o lo -p tcp --dport 9055 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner directus -o lo -j REJECT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8055 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner directus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner directus -o lo -p tcp --dport 9055 -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner directus -o lo -j REJECT || true
   '';
 }

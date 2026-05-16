@@ -46,4 +46,15 @@
 
   sops.secrets.borg_passphrase = {};
 
+  # Scoped Cloudflare token for site-builder: Pages:Edit + Workers:Edit.
+  # cloudflare_api_token (ddclient/DNS-01) is a separate, broader token.
+  sops.secrets.cloudflare_pages_api_token = {};
+
+  sops.templates."site-builder-env" = {
+    content = ''
+      CLOUDFLARE_API_TOKEN=${config.sops.placeholder.cloudflare_pages_api_token}
+    '';
+    owner = "site-builder";
+  };
+
 }

@@ -8,5 +8,6 @@
     ./nextcloud.nix
     ./immich.nix
     ./directus.nix
+    ./site.nix
   ];
 }
