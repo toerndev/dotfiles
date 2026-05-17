@@ -12,7 +12,7 @@
     protocol = "cloudflare";
     zone = "datasvard.com";
     username = "token";
-    domains = [ "datasvard.com" "cloud.datasvard.com" "wg.datasvard.com" "cms.datasvard.com" ];
+    domains = [ "datasvard.com" "cloud.datasvard.com" "wg.datasvard.com" "directus.datasvard.com" ];
     usev4 = "webv4, webv4=https://checkip.amazonaws.com/";
     usev6 = "";
     ssl = true;

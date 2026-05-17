@@ -7,7 +7,7 @@
     ./homepage.nix
     ./nextcloud.nix
     ./immich.nix
-    ./directus.nix
+    ./directus
     ./site.nix
   ];
 }

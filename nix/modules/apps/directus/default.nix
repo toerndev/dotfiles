@@ -1,4 +1,14 @@
 { config, pkgs, ... }:
+# Directus instance manifest lives alongside this module:
+#   ./package.json, ./yarn.lock, ./extensions/
+# These are the canonical version pins for the runtime at /srv/directus.
+# Install is manual (admin's job, after a fresh deploy or version bump):
+#   sudo -u losipai cp -n \
+#     /etc/nixos/modules/apps/directus/{package.json,yarn.lock} /srv/directus/
+#   sudo -u losipai bash -c 'cd /srv/directus && yarn install --immutable'
+#   sudo systemctl start directus
+# The unit below is gated on /srv/directus/node_modules/.bin/directus existing,
+# so a fresh boot without the install step skips cleanly instead of looping.
 {
   users.users.directus = {
     isSystemUser = true;
@@ -23,7 +33,7 @@
     environment = {
       HOST = "127.0.0.1";
       PORT = "8055";
-      PUBLIC_URL = "https://cms.datasvard.com";
+      PUBLIC_URL = "https://directus.datasvard.com";
       DB_CLIENT = "sqlite3";
       DB_FILENAME = "/var/lib/directus/database.sqlite";
       STORAGE_LOCATIONS = "local";
@@ -35,6 +45,8 @@
       # Without a writable home, pm2 crashes trying to create ~/.pm2/.
       PM2_HOME = "/var/lib/directus/.pm2";
     };
+
+    unitConfig.ConditionPathExists = "/srv/directus/node_modules/.bin/directus";
 
     serviceConfig = {
       User = "directus";
@@ -78,7 +90,7 @@
   # Public HTTPS vhost; DNS-01 via the existing Cloudflare token already in Caddy.
   # Pre-requisite: create the cms A record in Cloudflare manually before deploying
   # (ddclient only updates existing records, it cannot create them).
-  services.caddy.virtualHosts."cms.datasvard.com" = {
+  services.caddy.virtualHosts."directus.datasvard.com" = {
     extraConfig = ''
       reverse_proxy localhost:8055
 

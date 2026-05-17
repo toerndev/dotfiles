@@ -1,0 +1,13 @@
+{
+  "name": "directus",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "directus start",
+    "bootstrap": "directus bootstrap"
+  },
+  "dependencies": {
+    "directus": "^11"
+  },
+  "packageManager": "yarn@4.13.0"
+}
