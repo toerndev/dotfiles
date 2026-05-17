@@ -90,11 +90,10 @@
         ];
       }
       {
-        "Network" = [
+        "OpenWrt" = [
           {
-            "OpenWrt" = {
+            "Traffic" = {
               href = "http://192.168.1.1";
-              description = "WAN traffic";
               widget = {
                 type = "customapi";
                 # Insertion order: [0]=WAN RX, [1]=WAN TX, [2]=clients, [3]=conntrack.
@@ -128,9 +127,8 @@
             };
           }
           {
-            "OpenWrt — CPU Load" = {
+            "CPU" = {
               href = "http://192.168.1.1";
-              description = "Cortex-A53 quad-core @ 2 GHz";
               widget = {
                 type = "customapi";
                 url = "http://127.0.0.1:9090/api/v1/query?query=node_load1%7Bjob%3D%22openwrt%22%7D";
@@ -141,6 +139,38 @@
                     format = "float";
                     decimals = 2;
                   }
+                ];
+              };
+            };
+          }
+          {
+            "Download" = {
+              href = "http://192.168.1.1";
+              widget = {
+                type = "customapi";
+                # Same insertion-order trick as the other widgets: [0]=1h, [1]=1d,
+                # [2]=7d, [3]=30d. 30d window requires Prometheus retentionTime >= 30d.
+                url = "http://127.0.0.1:9090/api/v1/query?query=label_replace%28sum%28increase%28node_network_receive_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B1h%5D%29%29%2C%22_m%22%2C%221%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_receive_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B1d%5D%29%29%2C%22_m%22%2C%222%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_receive_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B7d%5D%29%29%2C%22_m%22%2C%223%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_receive_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B30d%5D%29%29%2C%22_m%22%2C%224%22%2C%22%22%2C%22%22%29";
+                mappings = [
+                  { field = "data.result.0.value.1"; label = "1h"; format = "bytes"; }
+                  { field = "data.result.1.value.1"; label = "1d"; format = "bytes"; }
+                  { field = "data.result.2.value.1"; label = "7d"; format = "bytes"; }
+                  { field = "data.result.3.value.1"; label = "30d"; format = "bytes"; }
+                ];
+              };
+            };
+          }
+          {
+            "Upload" = {
+              href = "http://192.168.1.1";
+              widget = {
+                type = "customapi";
+                url = "http://127.0.0.1:9090/api/v1/query?query=label_replace%28sum%28increase%28node_network_transmit_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B1h%5D%29%29%2C%22_m%22%2C%221%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_transmit_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B1d%5D%29%29%2C%22_m%22%2C%222%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_transmit_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B7d%5D%29%29%2C%22_m%22%2C%223%22%2C%22%22%2C%22%22%29%20or%20label_replace%28sum%28increase%28node_network_transmit_bytes_total%7Bjob%3D%22openwrt%22%2Cdevice%3D%22eth1%22%7D%5B30d%5D%29%29%2C%22_m%22%2C%224%22%2C%22%22%2C%22%22%29";
+                mappings = [
+                  { field = "data.result.0.value.1"; label = "1h"; format = "bytes"; }
+                  { field = "data.result.1.value.1"; label = "1d"; format = "bytes"; }
+                  { field = "data.result.2.value.1"; label = "7d"; format = "bytes"; }
+                  { field = "data.result.3.value.1"; label = "30d"; format = "bytes"; }
                 ];
               };
             };

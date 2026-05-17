@@ -3,9 +3,8 @@
 #   ./package.json, ./yarn.lock, ./extensions/
 # These are the canonical version pins for the runtime at /srv/directus.
 # Install is manual (admin's job, after a fresh deploy or version bump):
-#   sudo -u losipai cp -n \
-#     /etc/nixos/modules/apps/directus/{package.json,yarn.lock} /srv/directus/
-#   sudo -u losipai bash -c 'cd /srv/directus && yarn install --immutable'
+#   cp -n <nix-config>/modules/apps/directus/{package.json,yarn.lock} /srv/directus/
+#   (cd /srv/directus && yarn install --immutable)
 #   sudo systemctl start directus
 # The unit below is gated on /srv/directus/node_modules/.bin/directus existing,
 # so a fresh boot without the install step skips cleanly instead of looping.

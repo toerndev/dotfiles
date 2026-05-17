@@ -4,6 +4,8 @@
     enable = true;
     listenAddress = "127.0.0.1";
     port = 9090;
+    # Default is 15d; bumped so the 30d WAN volume widgets have a full window.
+    retentionTime = "45d";
 
     ruleFiles = [
       (pkgs.writeText "endlessh-rules.yaml" ''
