@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 # Generic webhook-triggered build/deploy daemon. Single instance, no per-
-# project nix configuration. Knows only its own port and debounce; projects
-# pass everything else by convention at request time.
+# project nix configuration. Knows only its own port; projects pass everything
+# else by convention at request time.
 #
 # Builder source lives alongside this module:
 #   ./src/server.ts   — the receiver (plain TS, run by Node directly)
@@ -12,13 +12,15 @@
 #
 # Triggering a build:
 #   POST http://127.0.0.1:<port>/<project-key>
-#   → runs `bash scripts/build-and-deploy.sh` in /srv/<project-key>/
-# The project owns its own script, its own .env, its own deploy logic.
-# The builder owns: per-key debounce, sandboxing, logging.
+#   → builds immediately; concurrent signals queue one rebuild; if the project
+#     provides scripts/build.sh + scripts/deploy.sh the build phase is
+#     abortable (new signal kills build and restarts); deploy is never interrupted.
+#     Falls back to scripts/build-and-deploy.sh (non-abortable).
+# The project owns its own scripts, its own .env, its own deploy logic.
 #
 # Adding a new project requires zero nix changes:
 #   1. Place project code at /srv/<key>/ (chown to site-builder group, mode 02750).
-#   2. Provide /srv/<key>/scripts/build-and-deploy.sh and its dependencies.
+#   2. Provide /srv/<key>/scripts/build.sh + scripts/deploy.sh (or build-and-deploy.sh).
 #   3. Point the source's webhook at http://127.0.0.1:<port>/<key>.
 let
   cfg = config.services.siteBuilder;
@@ -36,11 +38,6 @@ in
       type = lib.types.port;
       default = 9055;
       description = "Loopback port the webhook receiver listens on.";
-    };
-    debounceMs = lib.mkOption {
-      type = lib.types.int;
-      default = 10000;
-      description = "Per-key wait after the last webhook before the build runs.";
     };
   };
 
@@ -64,12 +61,12 @@ in
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
 
-      path = [ pkgs.nodejs yarn-wrapper ];
+      path = [ pkgs.nodejs pkgs.bash yarn-wrapper ];
 
       environment = {
         WEBHOOK_HOST = "127.0.0.1";
         WEBHOOK_PORT = toString cfg.port;
-        DEBOUNCE_MS = toString cfg.debounceMs;
+        HOME = "/var/cache/site-builder";
       };
 
       unitConfig.ConditionPathExists = "/srv/site-builder/src/server.ts";

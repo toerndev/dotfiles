@@ -46,4 +46,5 @@
 
   sops.secrets.borg_passphrase = {};
 
+  sops.secrets.cloudflare_pages_api_token = {};
 }

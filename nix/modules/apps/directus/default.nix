@@ -39,6 +39,9 @@
       STORAGE_LOCAL_ROOT = "/var/lib/directus/uploads";
       LOG_STYLE = "raw";
       LOG_LEVEL = "info";
+      # Allow Flow outbound requests to loopback (site-builder at 127.0.0.1:9055).
+      # 169.254.169.254 (AWS metadata) stays blocked; not on AWS but harmless to keep.
+      IMPORT_IP_DENY_LIST = "169.254.169.254";
       ADMIN_EMAIL = "admin@datasvard.com";
       # pm2 is used internally by `directus start` for worker clustering.
       # Without a writable home, pm2 crashes trying to create ~/.pm2/.
