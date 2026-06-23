@@ -1,6 +1,7 @@
 return {
   "saghen/blink.cmp",
   version = "1.*",
+  cond = not vim.g.vscode,
   dependencies = {
     "rafamadriz/friendly-snippets", -- snippet collection
     { dir = vim.fn.stdpath("config") .. "/snippets" }, -- custom snippets
@@ -31,6 +32,6 @@ return {
     sources = {
       default = { "lsp", "path", "snippets", "buffer" },
     },
-    cmdline = { enabled = false }, -- noice.nvim handles cmdline UI
+    cmdline = { enabled = true },
   },
 }
