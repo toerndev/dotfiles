@@ -9,5 +9,6 @@
     ./immich.nix
     ./directus
     ./site-builder
+    ./zigbee2mqtt.nix
   ];
 }
