@@ -17,6 +17,7 @@
     initExtra = ''
       export NPM_CONFIG_PREFIX="$HOME/.npm-global"
       export PATH="$HOME/.npm-global/bin:$PATH"
+      export PATH="$HOME/go/bin:$PATH"
     '';
   };
 
@@ -39,8 +40,18 @@
     };
   };
 
+  programs.go = {
+    enable = true;
+    env = {
+      GOPATH = "${config.home.homeDirectory}/go";
+      GOBIN = "${config.home.homeDirectory}/go/bin";
+    };
+  };
+
   home.packages = with pkgs; [
     nodejs_22
+    gopls
+    delve
     inputs.claude-code.packages.x86_64-linux.claude-code
     ssh-to-age
     sops

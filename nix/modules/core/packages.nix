@@ -13,8 +13,12 @@
     gawk
     gnused
     jq
+    lsof
+    psmisc
     python3
     ripgrep
+    sqlite
+    usbutils
   ];
 
   programs.neovim = {
