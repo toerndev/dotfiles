@@ -1,0 +1,76 @@
+# Rules for the zigbee-lamps service.
+#
+# Saving this file is enough: the service reloads it within ~2s and re-applies
+# the current phase to lamps that are on. No restart, no nixos-rebuild. A bad
+# edit is logged and the previous rules stay in force.
+#
+#   lampctl check                   # validate, and show what each lamp does when
+#   journalctl -u zigbee-lamps -f   # watch edits take effect
+#
+# Adding lights and sensors: README.md in this directory.
+
+[defaults]
+power_on_fade = "1s"    # how fast a lamp that just turned on moves to its phase
+reconcile_fade = "3s"   # after a rules edit or a service / z2m restart
+
+# ---------------------------------------------------------------------------
+# Phases of the day, shared by every lamp. Each runs from `at` until the next
+# one; the last wraps past midnight.
+#
+#   brightness  percent. 0.4 = level 1 of 254, the lowest a lamp goes while on.
+#   kelvin      2222 warmest .. 6250 coldest on the Sunricher drivers; lamps with
+#               a different range are clamped to their own.
+#   fade        optional. At the phase start, lamps that are on fade to whatever
+#               changed, over this long (max 1h49m). Without it, the phase only
+#               applies when a lamp turns on -- which is why nothing happens at
+#               06:00 to a lamp left on overnight.
+# ---------------------------------------------------------------------------
+
+[[phase]]
+name = "day"
+at = "06:00"
+brightness = 100
+kelvin = 6250
+
+[[phase]]
+name = "evening"
+at = "16:00"
+brightness = 100
+kelvin = 2222
+fade = "30m"
+
+[[phase]]
+name = "night"
+at = "20:00"
+brightness = 0.4
+kelvin = 2222
+fade = "30m"
+
+# ---------------------------------------------------------------------------
+# One [lamp.<z2m name>] per managed light. Lights not listed are left alone.
+# Every key is optional.
+#
+#   min_brightness, max_brightness      percent, clamp every phase
+#   <phase>.brightness, <phase>.kelvin  override one phase for this lamp
+#
+# Giving a lamp `sensors` makes it a motion lamp: lit to its phase on
+# occupancy, and when every sensor has cleared it waits `hold`, then fades to
+# `idle_brightness` over `fade_out`.
+#
+#   sensors = ["name", ...]     z2m names of occupancy sensors
+#   hold = "0s"                 extra wait after the sensors clear (sensors have
+#                               their own occupancy timeout too, see README)
+#   fade_out = "1m"
+#   idle_brightness = 0         0 = off; otherwise a glow, in percent
+#   <phase>.hold, <phase>.fade_out, <phase>.idle_brightness   per phase
+# ---------------------------------------------------------------------------
+
+[lamp.bedroom-ceiling]
+min_brightness = 30     # no sensor, stays on: never dimmer than 30%
+
+[lamp.stairs-bottom]
+# When the SNZB-03PR2 is paired and named, uncomment to make this a motion lamp:
+# sensors = ["stairs-pir"]
+# fade_out = "2m"
+# evening.fade_out = "3m"
+# night.fade_out = "45s"
