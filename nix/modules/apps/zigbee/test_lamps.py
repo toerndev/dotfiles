@@ -34,10 +34,26 @@ min_brightness = 30
 [lamp.stairs]
 [lamp.porch]
 sensors = ["pir"]
-hold = "10s"
-fade_out = "2m"
-night.fade_out = "45s"
-night.idle_brightness = 5
+program = "porch"
+night.program = "porch-night"
+[program.porch]
+after = [{ hold = "10s" }, { fade = "2m", to = 0 }]
+[program.porch-night]
+after = [{ hold = "10s" }, { fade = "45s", to = 5 }]
+"""
+
+HALL = """
+[program.hall]
+brightness = 100
+after = [
+  { hold = "3m" },
+  { fade = "2m", to = 10 },
+  { hold = "15m" },
+  { fade = "5s", to = 0 },
+]
+[lamp.hall]
+sensors = ["pir", "pir2"]
+program = "hall"
 """
 
 
@@ -74,29 +90,54 @@ class TestRules(unittest.TestCase):
         self.assertEqual(r.lamps["bedroom"].look(night).brightness, 30)
         self.assertEqual(level(r.lamps["bedroom"].look(night).brightness), 76)
         self.assertEqual(level(r.lamps["stairs"].look(night).brightness), 1)
-        self.assertEqual(r.lamps["porch"].param("fade_out", night), 45)
-        self.assertEqual(r.lamps["porch"].param("fade_out", r.phases[0]), 120)
+        self.assertEqual(r.lamps["porch"].program_at(night).name, "porch-night")
+        self.assertEqual(r.lamps["porch"].program_at(r.phases[0]).after[1].secs, 120)
+
+    def test_kelvin_range_clamps_the_phase(self):
+        r = rules("[lamp.narrow]\nmax_kelvin = 5000\nmin_kelvin = 2700")
+        self.assertEqual(r.lamps["narrow"].look(r.phases[0]).kelvin, 5000)
+        self.assertEqual(r.lamps["narrow"].look(r.phases[2]).kelvin, 2700)
+
+    def test_cct_reversed_mirrors_within_the_lamps_range(self):
+        z = FakeZ2M(["hall"])
+        r = rules("[lamp.hall]\nmax_kelvin = 5000\ncct_reversed = true")
+        e = Engine(r, z, now=lambda: at(12))
+        e.light("hall", 1, "test")                 # day 6250K -> 5000K = 200, sent as 450
+        e.now = lambda: at(22)
+        e.light("hall", 1, "test")                 # night 2222K = 450, sent as 200
+        self.assertEqual([p["color_temp"] for _, p in z.take()], [450, 200])
 
     def test_typos_are_errors(self):
         for bad, needle in [
             ("[lamp.x]\nmin_brightnes = 3", "unknown key"),
             ("[lamp.x]\nnigth.fade_out = '1m'", "unknown key"),
             ("[lamp.x]\nnight.fade_ot = '1m'", "unknown key"),
-            ("[lamp.x]\nfade_out = '5 minutes'", "duration"),
-            ("[lamp.x]\nfade_out = '2h'", "1h49m"),
+            ("[program.p]\nafter = [{ fade = '5 minutes', to = 0 }]", "duration"),
+            ("[program.p]\nafter = [{ fade = '2h', to = 0 }]", "1h49m"),
             ("[lamp.x]\nmin_brightness = 130", "percentage"),
             ("[lamp.x]\nsensors = 'pir'", "list"),
             ("[lamp.x]\nmin_brightness = 50\nmax_brightness = 40", "above"),
+            ("[lamp.x]\nmin_kelvin = 5000\nmax_kelvin = 4000", "above"),
+            ("[lamp.x]\ncct_reversed = 'yes'", "true or false"),
+            ("[lamp.x]\nsensors = ['pir']", "need a `program`"),
+            ("[lamp.x]\nprogram = 'nope'", "no \\[program.nope\\]"),
+            ("[program.p]\nbrightness = 'phse'", "or \"phase\""),
+            ("[program.p]\nafter = [{ hold = '1m', to = 5 }]", "needs a fade"),
+            ("[program.p]\nafter = [{ fade = '1m' }]", "needs `to`"),
+            ("[program.p]\nafter = [{ hold = '1m', fade = '1m', to = 3 }]", "either"),
+            ("[program.p]\nafter = [{ fade = '1m', to = 0 }, { hold = '1m' }]", "last step"),
+            ("[program.p]\nafter = [{ wait = '1m' }]", "unknown key"),
         ]:
             with self.subTest(bad), self.assertRaisesRegex(RulesError, needle):
                 rules(bad, base=BASE.split("[lamp.bedroom]")[0])
 
 
 class FakeZ2M:
-    def __init__(self, names):
+    def __init__(self, names, sensors=("pir",)):
         self.devices = {n: Device(n, "0x" + n, "Router", "m", "v", "", True,
                                   (160, 450), True, False) for n in names}
-        self.devices["pir"] = Device("pir", "0xpir", "EndDevice", "m", "v", "", True,
+        for s in sensors:
+            self.devices[s] = Device(s, "0x" + s, "EndDevice", "m", "v", "", True,
                                      None, False, True)
         self.state, self.online, self.sent, self.gets = {}, {}, [], []
 
@@ -175,7 +216,8 @@ class TestEngine(unittest.TestCase):
         self.ev("state", "stairs", {"state": "ON"})   # late: not treated as reconcile
         self.assertEqual(self.z.take(), [])
 
-    def test_motion_lamp_cycle(self):
+    def test_motion_lamp_cycle_and_its_echo(self):
+        self.ev("state", "porch", {"state": "OFF"})
         self.ev("state", "pir", {"occupancy": True})
         self.assertEqual(self.z.take(), [("porch", {"brightness": 254, "color_temp": 160, "transition": 1})])
         self.ev("state", "porch", {"state": "ON"})     # our own echo: no retrigger
@@ -232,6 +274,157 @@ class TestEngine(unittest.TestCase):
                                base=BASE.replace("[lamp.bedroom]\nmin_brightness = 30\n", "")))
         self.ev("state", "bedroom", {"state": "ON"})
         self.assertEqual(self.z.take(), [("bedroom", {"brightness": 152, "color_temp": 160, "transition": 3})])
+
+
+
+class TestPrograms(unittest.TestCase):
+    """A multi-step program, shared sensors, and how runs meet the rest."""
+
+    def setUp(self):
+        self.t = at(12)
+        self.z = FakeZ2M(["bedroom", "stairs", "porch", "hall"], sensors=("pir", "pir2"))
+        self.e = Engine(rules(HALL), self.z, now=lambda: self.t)
+
+    ev, advance, jump = TestEngine.ev, TestEngine.advance, TestEngine.jump
+
+    def sent(self, name):
+        return [p for n, p in self.z.take() if n == name]
+
+    def test_hallway_timeline(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=3)
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120}])
+        self.advance(minutes=2)
+        self.advance(minutes=14, seconds=59)
+        self.assertEqual(self.sent("hall"), [])            # prolonged at 10%
+        self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
+        self.advance(seconds=5)
+        self.assertNotIn("hall", self.e.runs)
+
+    def test_motion_during_after_starts_over(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=6)                            # in the 10% hold
+        self.z.take()
+        self.ev("state", "pir", {"occupancy": True})
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=2, seconds=59)
+        self.assertEqual(self.sent("hall"), [])            # a fresh 3m hold
+
+    def test_lamp_held_while_any_sensor_is(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=10)
+        self.assertEqual(len(self.sent("hall")), 1)        # still held by pir2
+        self.ev("state", "pir2", {"occupancy": False})
+        self.advance(minutes=3)
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120}])
+
+    def test_one_sensor_drives_lamps_with_different_programs(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(seconds=10)
+        self.assertEqual(self.z.take(), [
+            ("porch", {"brightness": 254, "color_temp": 160, "transition": 1}),
+            ("hall", {"brightness": 254, "color_temp": 160, "transition": 1}),
+            ("porch", {"state": "OFF", "transition": 120})])
+
+    def test_program_brightness_ignores_the_phase_but_not_its_colour(self):
+        self.jump(at(23))
+        self.ev("state", "pir2", {"occupancy": True})
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 450, "transition": 1}])
+
+    def test_power_on_shows_the_phase_then_runs_after(self):
+        self.jump(at(21))
+        self.ev("announce", "hall")
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "color_temp": 450, "transition": 1}])
+        self.advance(minutes=3)
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120}])
+
+    def test_phase_fade_reaches_a_lamp_at_the_phase_look(self):
+        self.jump(at(19, 58))
+        self.ev("announce", "hall")                        # phase look, holding 3m
+        self.ev("state", "hall", {"state": "ON"})
+        self.z.take()
+        self.jump(at(19, 59, 59))
+        self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "transition": 1800}])
+
+    def test_phase_fade_leaves_a_program_brightness_alone(self):
+        self.ev("state", "pir2", {"occupancy": True})      # held at 100%
+        self.ev("state", "hall", {"state": "ON"})
+        self.z.take()
+        self.jump(at(19, 59, 59))
+        self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [])
+
+    def test_steps_catch_up_after_a_suspend(self):
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "pir2", {"occupancy": False})
+        self.z.take()
+        self.advance(hours=1)
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120},
+                                             {"state": "OFF", "transition": 5}])
+
+    def test_motion_relights_a_lamp_switched_off_while_occupied(self):
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "hall", {"state": "ON"})
+        self.ev("state", "pir2", {"occupancy": True})      # repeat while lit: nothing
+        self.assertEqual(len(self.sent("hall")), 1)
+        self.ev("state", "hall", {"state": "OFF"})         # lampctl set --off
+        self.ev("state", "pir2", {"occupancy": True})      # next report, ~10s later
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
+
+    def test_mains_back_while_held_restores_the_program_level(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.z.take()
+        self.ev("announce", "hall")
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
+
+    def test_switched_off_ends_the_run_and_on_starts_one(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "hall", {"state": "ON"})
+        self.ev("state", "pir", {"occupancy": False})
+        self.ev("state", "hall", {"state": "OFF"})         # from the frontend
+        self.assertNotIn("hall", self.e.runs)
+        self.z.take()
+        self.advance(seconds=20)
+        self.ev("state", "hall", {"state": "ON"})          # and on again
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
+        self.assertEqual(self.e.runs["hall"].level, "phase")
+
+    def test_reconcile_keeps_a_run_where_it_is(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=6)                            # resting in the 10% hold
+        self.z.take()
+        self.ev("bridge", data={"online": True})
+        self.ev("state", "hall", {"state": "ON"})
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "color_temp": 160, "transition": 3}])
+        self.advance(minutes=14)
+        self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
+
+    def test_rules_edit_applies_to_a_running_program_at_once(self):
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "pir2", {"occupancy": False})
+        self.advance(minutes=2)                            # 1m into the old 3m hold
+        self.z.take()
+        self.e.set_rules(rules(HALL.replace('{ hold = "3m" }', '{ hold = "1m" }')))
+        self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120}])
+        self.advance(minutes=15, seconds=59)               # off at 1m + 2m + 15m after clear
+        self.assertEqual(self.sent("hall"), [])
+        self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
+
+    def test_seconds_to_next_wakes_for_steps(self):
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "pir2", {"occupancy": False})
+        self.assertEqual(self.e.seconds_to_next(cap=600), 180)
 
 
 if __name__ == "__main__":

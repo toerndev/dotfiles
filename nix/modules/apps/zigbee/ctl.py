@@ -16,7 +16,7 @@ Talks to the same broker as the service; safe to run while it is running.
 import argparse, json, os, socket, subprocess, sys, time, uuid
 from urllib.parse import urlparse
 
-from rules import RulesError, level, load, mireds
+from rules import PHASE, RulesError, level, load, mireds
 from z2m import Z2M
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -68,7 +68,7 @@ def rules_roles(path):
         r = load(path)
     except (RulesError, OSError):
         return {}
-    roles = {n: "lamp" + (" (motion)" if l.motion else "") for n, l in r.lamps.items()}
+    roles = {n: "lamp" + (" (program)" if l.program else "") for n, l in r.lamps.items()}
     for s, lamps in r.sensor_lamps.items():
         roles[s] = "sensor -> " + ", ".join(lamps)
     return roles
@@ -284,14 +284,20 @@ def cmd_check(a):
         fade = f"fade {p.fade:g}s at start" if p.fade else "applies on turn-on only"
         print(f"  {p.at} {p.name:10} {p.brightness:g}%  {p.kelvin}K  ({fade})")
     for name, lamp in r.lamps.items():
-        print(f"\n[{name}]" + (f"  motion: {', '.join(lamp.sensors)}" if lamp.motion else ""))
+        print(f"\n[{name}]" + (f"  sensors: {', '.join(lamp.sensors)}" if lamp.sensors else ""))
         for p in r.phases:
             look = lamp.look(p)
             line = f"  {p.name:10} {look.brightness:g}% (level {level(look.brightness)})  {look.kelvin}K"
-            if lamp.motion:
-                line += (f"  hold {lamp.param('hold', p):g}s, fade out "
-                         f"{lamp.param('fade_out', p):g}s to {lamp.param('idle_brightness', p):g}%")
+            if prog := lamp.program_at(p):
+                line += f"  [{prog.name}] {describe(prog)}"
             print(line)
+
+
+def describe(prog):
+    b = "phase" if prog.brightness == PHASE else f"{prog.brightness:g}%"
+    steps = [f"fade {s.secs:g}s to {s.to:g}%" if s.to is not None else f"hold {s.secs:g}s"
+             for s in prog.after]
+    return " -> ".join([b, *steps])
 
 
 def main():

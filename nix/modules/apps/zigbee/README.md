@@ -79,24 +79,40 @@ rules need no change. Remove the old entry in the frontend.
    Battery sensors sleep: if the interview stalls, press the button to wake
    it.
 2. **Its own timeout:** a sensor reports `occupancy: true` on movement and
-   `false` after its own timeout. `hold` in the rules is extra time on top.
-   - SNZB-03PR2: a device setting, under Exposes in the frontend.
+   `false` after its own timeout. The program's `after` steps start then.
+   - SNZB-03PR2 (firmware 1.0.5): z2m 2.6.3 has no converter for it and pairs
+     it with an *Automatically generated definition*. That exposes only
+     `occupancy`, `illuminance` and `battery`, with no timeout setting, so
+     the sensor's built-in timeout applies: `occupancy: false` comes 45–55s
+     after the last movement (measured twice). A `hold` step makes it longer.
+     It only reports changes: about every 10s while it keeps seeing motion,
+     then nothing until the `false`. Silence in between is normal.
    - Hue outdoor sensor: `occupancy_timeout`, under Settings (specific).
+     Stored in `devices.yaml`.
 
-   Check the model's z2m page for the exact names. Both are stored in
-   `devices.yaml`.
-3. **Bind it** in `rules.toml`:
+   Check the model's z2m page for the exact names. If the frontend says
+   *Automatically generated definition*, the model-specific settings are
+   missing: see what it actually exposes before relying on the page.
+3. **Before mounting:** hold it where it will go and check
+   `lampctl state <sensor>`. `linkquality` should be well above 0 and
+   `occupancy` should flip when you walk past.
+4. **Bind it** in `rules.toml`: give the light a program and the sensor.
    ```toml
+   [program.stairs]
+   after = [{ hold = "30s" }, { fade = "2m", to = 0 }]   # lit to the phase look
+   [program.stairs-night]
+   after = [{ fade = "45s", to = 3 }]                    # glow instead of off
+
    [lamp.stairs-bottom]
    sensors = ["stairs-pir"]
-   fade_out = "2m"            # default for every phase
-   night.fade_out = "45s"     # this phase only
-   night.idle_brightness = 3  # glow instead of off, this phase only
+   program = "stairs"
+   night.program = "stairs-night"     # this phase only
    ```
-   A light can have several sensors: it stays lit while any is occupied. A
-   sensor can drive several lights.
-4. Watch it: `journalctl -u zigbee-lamps -f` shows `motion on stairs-pir`,
-   `clear, fading out in …`, `fading to 0% over …`.
+   A light can have several sensors: it stays held while any is occupied. A
+   sensor can drive several lights, each with its own program.
+5. Watch it: `journalctl -u zigbee-lamps -f` shows `motion on stairs-pir`,
+   `clear on stairs-pir [stairs: hold 30s, fade 2m to 0%]`,
+   `fading to 0% over 2m`, `program done, off`.
 
 ## How the rules behave
 
@@ -106,23 +122,34 @@ rules need no change. Remove the old entry in the frontend.
   colour temperature.
   - A phase with `fade` also acts at its start: lamps that are on fade to
     whatever changed. That's colour only at 16:00 and brightness only at
-    20:00.
+    20:00 and 21:30.
   - A phase without `fade` only applies when a lamp turns on. That is why
     nothing happens at 06:00.
-- **Plain lamps** (no `sensors`) follow the phase. They move to it when they
+- **Plain lamps** (no `program`) follow the phase. They move to it when they
   turn on, whether at the wall (the lamp re-announces itself ~5s after power
   returns) or over Zigbee.
-- **Motion lamps** (`sensors = [...]`):
-  1. Occupancy lights the lamp to its phase.
-  2. When every sensor has cleared, it waits `hold`.
-  3. Then it fades to `idle_brightness` (0 = off) over `fade_out`.
+- **Programs** (`[program.<name>]`) are what a lamp does when an input
+  lights it. A lamp with `program = "<name>"` (or `<phase>.program`):
+  1. An input holds it at the program's `brightness`: a percent, or the
+     phase look. Inputs today are the lamp's `sensors`; it is held while any
+     of them reports occupancy.
+  2. When every input has let go, the `after` steps run in order:
+     `{ hold = … }` stays, `{ fade = …, to = … }` fades (0 = off). The last
+     level stays until the next input.
 
-  Movement before the end starts again from step 1. Switching the lamp on at
-  the wall counts as movement that has just cleared.
+  An input during `after` starts again from step 1. Switching the lamp on
+  (wall, Zigbee, power back) counts as an input that has just let go: lit to
+  the phase look, then `after`. A lamp switched off ends its program;
+  the sensor's next report of motion (~10s while it lasts) lights it again.
+  Inputs and lamps are n:m: one sensor can drive several lamps with
+  different programs. A rules edit applies at once: a running `after` is
+  redone as if the new steps had been in force since the input let go.
 - **Per-lamp settings:** `min_brightness`/`max_brightness` clamp every
-  phase; `<phase>.<key>` overrides one phase for one lamp.
+  phase look (not a program's own levels); `<phase>.<key>` overrides one
+  phase for one lamp.
 - **Safety:** colour changes may go to any lamp, since they never switch one
-  on. Scheduled brightness changes only go to lamps already on.
+  on. Scheduled brightness changes only go to lamps already on, and to a
+  programmed lamp only while it shows the phase look.
 - **After a restart** of this service or z2m, a rules edit, or a lamp
   appearing in z2m, lamps are read live. The ones that answer ON get the
   current phase. A lamp with its mains cut can't answer, so it is left alone.

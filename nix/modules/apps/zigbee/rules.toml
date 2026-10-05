@@ -19,7 +19,8 @@ reconcile_fade = "3s"   # after a rules edit or a service / z2m restart
 #
 #   brightness  percent. 0.4 = level 1 of 254, the lowest a lamp goes while on.
 #   kelvin      2222 warmest .. 6250 coldest on the Sunricher drivers; lamps with
-#               a different range are clamped to their own.
+#               a different range are clamped to their own (min_kelvin,
+#               max_kelvin below; z2m only knows the model's range).
 #   fade        optional. At the phase start, lamps that are on fade to whatever
 #               changed, over this long (max 1h49m). Without it, the phase only
 #               applies when a lamp turns on -- which is why nothing happens at
@@ -42,35 +43,89 @@ fade = "30m"
 [[phase]]
 name = "night"
 at = "20:00"
-brightness = 0.4
+brightness = 50
 kelvin = 2222
 fade = "30m"
+
+[[phase]]
+name = "late"
+at = "21:30"
+brightness = 5          # 0.4 (level 1) was too dim to tell on from off
+kelvin = 2222
+fade = "30m"
+
+# ---------------------------------------------------------------------------
+# Programs: what a lamp does when an input lights it. Reusable; a lamp picks
+# one with `program`, and can pick another for one phase with
+# `<phase>.program`.
+#
+#   brightness = "phase"    while an input holds it: percent, or "phase" (the
+#                           lamp's look for the current phase). Colour is
+#                           always the phase's.
+#   after = [ ... ]         once every input has let go, in order:
+#                             { hold = "3m" }             stay where it is
+#                             { fade = "2m", to = 10 }    percent; 0 = off
+#                           The last level stays until the next input.
+#
+# An input that comes back during `after` starts again from `brightness`.
+# Occupancy sensors only let go after their own timeout (SNZB-03PR2: ~50s,
+# README), so `after` starts that long after the last movement.
+# ---------------------------------------------------------------------------
+
+[program.hallway]
+brightness = 100
+after = [               # trial values; the sensor already holds ~50s
+  { hold = "0s" },        # delay before dimming
+  { fade = "5s", to = 35 },  # log dimming curve: 30-35 is dim but visible
+  { hold = "10m" },
+  { fade = "5s", to = 0 },
+]
+
+[program.hallway-late]  # the same, at the floor: 100% is too much at night
+brightness = 35
+after = [               # trial values; the sensor already holds ~50s
+  { hold = "0s" },        # delay before dimming
+  { fade = "5s", to = 35 },  # log dimming curve: 30-35 is dim but visible
+  { hold = "10m" },
+  { fade = "5s", to = 0 },
+]
 
 # ---------------------------------------------------------------------------
 # One [lamp.<z2m name>] per managed light. Lights not listed are left alone.
 # Every key is optional.
 #
-#   min_brightness, max_brightness      percent, clamp every phase
+#   min_brightness, max_brightness      percent, clamp every phase look
+#   min_kelvin, max_kelvin              the range this lamp is set to, when
+#                                       narrower than z2m says (NFC-configured)
+#   cct_reversed = true                 WW/CW wired the wrong way round: send
+#                                       the colour mirrored within that range.
+#                                       Stopgap; the lamp's own power-on colour
+#                                       and `lampctl set` stay reversed.
 #   <phase>.brightness, <phase>.kelvin  override one phase for this lamp
+#   sensors = ["name", ...]             z2m names of occupancy sensors; any of
+#                                       them holds the lamp on. A sensor can be
+#                                       listed by several lamps.
+#   program = "name"                    see Programs above; needed with sensors
+#   <phase>.program = "name"            a different program in that phase
 #
-# Giving a lamp `sensors` makes it a motion lamp: lit to its phase on
-# occupancy, and when every sensor has cleared it waits `hold`, then fades to
-# `idle_brightness` over `fade_out`.
-#
-#   sensors = ["name", ...]     z2m names of occupancy sensors
-#   hold = "0s"                 extra wait after the sensors clear (sensors have
-#                               their own occupancy timeout too, see README)
-#   fade_out = "1m"
-#   idle_brightness = 0         0 = off; otherwise a glow, in percent
-#   <phase>.hold, <phase>.fade_out, <phase>.idle_brightness   per phase
+# A lamp with a program also runs it when it is switched on (wall, Zigbee,
+# power back): lit to the phase look, then `after` as if an input let go.
 # ---------------------------------------------------------------------------
 
 [lamp.bedroom-ceiling]
 min_brightness = 30     # no sensor, stays on: never dimmer than 30%
 
 [lamp.stairs-bottom]
-# When the SNZB-03PR2 is paired and named, uncomment to make this a motion lamp:
-# sensors = ["stairs-pir"]
-# fade_out = "2m"
-# evening.fade_out = "3m"
-# night.fade_out = "45s"
+# When the stairs sensor is paired and named, a program and
+#   sensors = ["stairs-pir"]
+#   program = "stairs"
+# make this a motion lamp.
+
+[lamp.hallway]
+# Always powered: on and off over Zigbee only.
+min_brightness = 35     # log dimming curve: below ~30 looks off
+max_kelvin = 5000       # driver set by NFC to 200-450 mireds; LEDs 2200-5000K
+cct_reversed = true     # yellow wire on CW, white on WW: remove once swapped
+sensors = ["hallway-pir"]
+program = "hallway"
+late.program = "hallway-late"

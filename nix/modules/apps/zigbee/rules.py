@@ -12,9 +12,10 @@ from datetime import timedelta
 MAX_FADE_S = 6553          # ZCL transition time is a uint16 of deciseconds
 LEVEL_MAX = 254
 
-LAMP_KEYS = {"min_brightness", "max_brightness", "sensors", "hold", "fade_out",
-             "idle_brightness"}
-PHASE_OVERRIDES = {"brightness", "kelvin", "hold", "fade_out", "idle_brightness"}
+LAMP_KEYS = {"min_brightness", "max_brightness", "min_kelvin", "max_kelvin",
+             "cct_reversed", "sensors", "program"}
+PHASE_OVERRIDES = {"brightness", "kelvin", "program"}
+PHASE = "phase"            # a program brightness that means "the lamp's phase look"
 
 
 class RulesError(ValueError):
@@ -94,36 +95,48 @@ class Look:
     kelvin: int
 
 
+@dataclass(frozen=True)
+class Step:
+    secs: float
+    to: float | None = None    # percent to fade to; None = hold where it is
+
+
+@dataclass(frozen=True, eq=False)
+class Program:
+    """What a lamp does when an input lights it, and after the input lets go."""
+    name: str
+    brightness: float | str = PHASE    # while held on; PHASE = the phase look
+    after: tuple = ()                  # Steps, in order; the last level stays
+
+
 @dataclass(frozen=True, eq=False)
 class Lamp:
     name: str
     min_brightness: float = 0.0
     max_brightness: float = 100.0
+    min_kelvin: int = 1000
+    max_kelvin: int = 10000
+    cct_reversed: bool = False     # WW/CW wired the wrong way round
     sensors: tuple = ()
-    hold: float = 0.0
-    fade_out: float = 60.0
-    idle_brightness: float = 0.0
+    program: Program | None = None
     per_phase: dict = field(default_factory=dict)   # phase name -> {key: value}
 
-    @property
-    def motion(self):
-        return bool(self.sensors)
-
-    def param(self, key, phase):
-        """A motion setting, with this lamp's override for `phase` if any."""
-        return self.per_phase.get(phase.name, {}).get(key, getattr(self, key))
+    def program_at(self, phase):
+        return self.per_phase.get(phase.name, {}).get("program", self.program)
 
     def look(self, phase):
         o = self.per_phase.get(phase.name, {})
         b = o.get("brightness", phase.brightness)
+        k = o.get("kelvin", phase.kelvin)
         return Look(min(self.max_brightness, max(self.min_brightness, b)),
-                    o.get("kelvin", phase.kelvin))
+                    min(self.max_kelvin, max(self.min_kelvin, k)))
 
 
 @dataclass(frozen=True, eq=False)
 class Rules:
     phases: tuple              # sorted by start
     lamps: dict                # name -> Lamp
+    programs: dict             # name -> Program
     power_on_fade: float = 1.0
     reconcile_fade: float = 3.0
 
@@ -179,39 +192,85 @@ def _phase(i, p):
                  None if fade is None else _duration(fade, f"{where} fade", MAX_FADE_S))
 
 
-def _motion_value(key, v, where):
-    if key == "hold":
-        return _duration(v, where)
-    if key == "fade_out":
-        return _duration(v, where, MAX_FADE_S)
-    if key == "kelvin":
+def _step(i, t, where):
+    where = f"{where} after #{i + 1}"
+    _keys(t, {"hold", "fade", "to"}, where)
+    if ("hold" in t) == ("fade" in t):
+        raise RulesError(f"{where}: expected either {{ hold = ... }} "
+                         f"or {{ fade = ..., to = ... }}")
+    if "hold" in t:
+        if "to" in t:
+            raise RulesError(f"{where}: a hold stays where it is; `to` needs a fade")
+        return Step(_duration(t["hold"], f"{where} hold"))
+    if "to" not in t:
+        raise RulesError(f"{where}: a fade needs `to` (percent, 0 = off)")
+    return Step(_duration(t["fade"], f"{where} fade", MAX_FADE_S),
+                _percent(t["to"], f"{where} to"))
+
+
+def _program(name, t):
+    where = f"[program.{name}]"
+    _keys(t, {"brightness", "after"}, where)
+    b = t.get("brightness", PHASE)
+    if b != PHASE:
+        try:
+            b = _percent(b, f"{where} brightness")
+        except RulesError:
+            raise RulesError(f"{where} brightness: expected a percentage 0-100 "
+                             f"or \"phase\", got {b!r}") from None
+    after = t.get("after", [])
+    if not isinstance(after, list):
+        raise RulesError(f"{where} after: expected a list of steps")
+    steps = tuple(_step(i, s, where) for i, s in enumerate(after))
+    if any(s.to == 0 for s in steps[:-1]):
+        raise RulesError(f"{where} after: a fade to 0 switches the lamp off, "
+                         f"which ends the program; it can only be the last step")
+    return Program(name, b, steps)
+
+
+def _lamp_value(key, v, where, programs):
+    if key == "program":
+        if v not in programs:
+            raise RulesError(f"{where}: no [program.{v}]; defined: "
+                             f"{', '.join(sorted(programs)) or 'none'}")
+        return programs[v]
+    if key in ("kelvin", "min_kelvin", "max_kelvin"):
         return _kelvin(v, where)
+    if key == "cct_reversed":
+        if not isinstance(v, bool):
+            raise RulesError(f"{where}: expected true or false, got {v!r}")
+        return v
     return _percent(v, where)
 
 
-def _lamp(name, t, phase_names):
+def _lamp(name, t, phase_names, programs):
     where = f"[lamp.{name}]"
     _keys(t, LAMP_KEYS | phase_names, where)
     kw = {}
     for key in LAMP_KEYS - {"sensors"}:
         if key in t:
-            kw[key] = _motion_value(key, t[key], f"{where} {key}")
+            kw[key] = _lamp_value(key, t[key], f"{where} {key}", programs)
     sensors = t.get("sensors", [])
     if not isinstance(sensors, list) or not all(isinstance(s, str) and s for s in sensors):
         raise RulesError(f"{where} sensors: expected a list of z2m names")
     per_phase = {}
     for pn in phase_names & set(t):
         _keys(t[pn], PHASE_OVERRIDES, f"{where} {pn}.*")
-        per_phase[pn] = {k: _motion_value(k, v, f"{where} {pn}.{k}")
+        per_phase[pn] = {k: _lamp_value(k, v, f"{where} {pn}.{k}", programs)
                          for k, v in t[pn].items()}
     lamp = Lamp(name, sensors=tuple(sensors), per_phase=per_phase, **kw)
     if lamp.min_brightness > lamp.max_brightness:
         raise RulesError(f"{where}: min_brightness is above max_brightness")
+    if lamp.min_kelvin > lamp.max_kelvin:
+        raise RulesError(f"{where}: min_kelvin is above max_kelvin")
+    if lamp.program is None and (sensors or any("program" in o for o in per_phase.values())):
+        raise RulesError(f"{where}: sensors and <phase>.program need a `program` "
+                         f"(what the lamp does the rest of the day)")
     return lamp
 
 
 def parse(raw):
-    _keys(raw, {"defaults", "phase", "lamp"}, "top level")
+    _keys(raw, {"defaults", "phase", "lamp", "program"}, "top level")
     d = raw.get("defaults", {})
     _keys(d, {"power_on_fade", "reconcile_fade"}, "[defaults]")
 
@@ -228,11 +287,15 @@ def parse(raw):
     for clash in set(names) & LAMP_KEYS:
         raise RulesError(f"phase name {clash!r} clashes with a lamp setting")
 
+    programs = raw.get("program", {})
+    _keys(programs, programs.keys(), "[program]")
+    programs = {n: _program(n, t) for n, t in programs.items()}
     lamps = raw.get("lamp", {})
     _keys(lamps, lamps.keys(), "[lamp]")
     return Rules(
         phases=tuple(phases),
-        lamps={n: _lamp(n, t, set(names)) for n, t in lamps.items()},
+        lamps={n: _lamp(n, t, set(names), programs) for n, t in lamps.items()},
+        programs=programs,
         power_on_fade=_duration(d.get("power_on_fade", 1), "[defaults] power_on_fade", MAX_FADE_S),
         reconcile_fade=_duration(d.get("reconcile_fade", 3), "[defaults] reconcile_fade", MAX_FADE_S),
     )
