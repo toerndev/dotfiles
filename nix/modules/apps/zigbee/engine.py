@@ -23,6 +23,12 @@ Safety (README "Lamp facts"): colour temperature never switches a lamp on, so it
 go to any lamp. Brightness uses moveToLevelWithOnOff, which does, so it only
 goes to lamps already on -- except where lighting up is the point (power on,
 an input).
+
+Delivery: z2m publishes a lamp's state when a command got through, and
+nothing when it did not (weak link, or mains cut). A command not confirmed
+within VERIFY is resent, only the fields still missing and with what is left
+of its fade, up to RETRIES times. Every RECONCILE_EVERY the lamps are also
+read live, which catches anything the retries could not.
 """
 import logging
 from dataclasses import dataclass
@@ -34,6 +40,10 @@ log = logging.getLogger("engine")
 
 DEBOUNCE = timedelta(seconds=15)       # announce + availability + state together
 PROBE_WINDOW = timedelta(seconds=10)
+VERIFY = timedelta(seconds=15)         # z2m confirms a command within ~1s
+RETRIES = 2
+RECONCILE_EVERY = timedelta(minutes=10)
+LEVEL = {"state", "brightness"}        # one target: on at a level, or OFF
 
 
 def _secs(s):
@@ -42,6 +52,10 @@ def _secs(s):
 
 def _pct(b):
     return "phase" if b == PHASE else f"{b:g}%"
+
+
+def _fields(fields):
+    return ", ".join(f"{k} {v[0]}" for k, v in fields.items())
 
 
 @dataclass
@@ -55,6 +69,14 @@ class Run:
     since: datetime | None = None   # when the input let go
 
 
+@dataclass
+class Sent:
+    """A command z2m has not confirmed yet."""
+    fields: dict                # key -> (value, when its fade ends)
+    due: datetime               # check, and resend what is still missing
+    tries: int = 0
+
+
 class Engine:
     def __init__(self, rules, z2m, now=datetime.now):
         self.rules, self.z2m, self.now = rules, z2m, now
@@ -62,6 +84,9 @@ class Engine:
         self.probing = {}          # lamp -> deadline for its /get answer
         self.occupied = {}         # sensor -> bool
         self.runs = {}             # programmed lamp -> Run
+        self.unconfirmed = {}      # lamp -> Sent
+        self.quiet = set()         # lamps probed by the periodic reconcile
+        self.next_reconcile = now() + RECONCILE_EVERY
         self._warned = None
         self._known = set()        # rule lamps z2m currently has a device for
         self._plan()
@@ -127,23 +152,87 @@ class Engine:
             lo, hi = mireds(lamp.max_kelvin), mireds(lamp.min_kelvin)
             if dev:
                 lo, hi = max(lo, dev.color_temp[0]), min(hi, dev.color_temp[1])
-            ct = max(lo, min(hi, mireds(look.kelvin)))
-            if lamp.cct_reversed:
-                ct = lo + hi - ct        # mirrored within the lamp's own range
-            p["color_temp"] = ct
+            p["color_temp"] = max(lo, min(hi, mireds(look.kelvin)))
         if p:
             p["transition"] = transition
         return p
 
-    def light(self, name, transition, why, brightness=PHASE):
-        """The phase look, or the phase's colour at a program's brightness."""
+    def _send(self, name, payload):
+        """Send, and expect z2m to confirm it (see _verify)."""
+        self.z2m.set(name, payload)
+        if getattr(self.z2m, "dry_run", False):
+            return
+        now = self.now()
+        ends = now + timedelta(seconds=payload.get("transition", 0))
+        new = {k: (v, ends) for k, v in payload.items() if k != "transition"}
+        old = self.unconfirmed.get(name)
+        keep = {} if old is None else {
+            k: v for k, v in old.fields.items()
+            if k not in new and not (k in LEVEL and LEVEL & new.keys())}
+        self.unconfirmed[name] = Sent({**keep, **new}, now + VERIFY)
+
+    def _confirm(self, ev):
+        sent = self.unconfirmed.get(ev.name)
+        if not sent:
+            return
+        if (ev.data.get("state") == "OFF" and ev.prev.get("state") == "ON"
+                and "brightness" in sent.fields):
+            del sent.fields["brightness"]    # switched off meanwhile: don't relight
+        for k, (v, _) in list(sent.fields.items()):
+            if ev.data.get(k) == v:
+                del sent.fields[k]
+        if not sent.fields:
+            del self.unconfirmed[ev.name]
+
+    def _verify(self, name, now):
+        """No confirmation in time. A lamp's own reports can land between
+        command and check, so z2m's cache matching counts as confirmed too."""
+        sent = self.unconfirmed.pop(name)
+        cache = self.z2m.state.get(name, {})
+        missing = {k: v for k, v in sent.fields.items() if cache.get(k) != v[0]}
+        if not missing or name not in self.rules.lamps:
+            return
+        if sent.tries >= RETRIES or self.z2m.online.get(name) is False:
+            log.info("%s: %s never confirmed, giving up (unpowered or out of range?)",
+                     name, _fields(missing))
+            return
+        sent.tries += 1
+        log.info("%s: %s not confirmed, resending (%d/%d)",
+                 name, _fields(missing), sent.tries, RETRIES)
+        by_end = {}
+        for k, (v, ends) in missing.items():
+            by_end.setdefault(ends, {})[k] = v
+        for ends, p in by_end.items():
+            left = max(0.0, (ends - now).total_seconds())
+            self.z2m.set(name, {**p, "transition": round(left, 1)})
+        self.unconfirmed[name] = Sent(missing, now + VERIFY, sent.tries)
+
+    def _fade_left(self, now):
+        """Seconds left of the current phase's fade, 0 when not fading."""
+        phase = self.rules.phase_at(now)
+        if not phase.fade:
+            return 0.0
+        start = now.replace(hour=phase.start // 60, minute=phase.start % 60,
+                            second=0, microsecond=0)
+        if start > now:
+            start -= timedelta(days=1)
+        return max(0.0, phase.fade - (now - start).total_seconds())
+
+    def light(self, name, transition, why, brightness=PHASE, unless=None):
+        """The phase look, or the phase's colour at a program's brightness.
+        Nothing is sent if `unless` (a live read) already shows it."""
         phase = self.rules.phase_at(self.now())
         look = self.rules.lamps[name].look(phase)
         if brightness != PHASE:
             look = Look(brightness, look.kelvin)
+        payload = self._payload(name, look, transition)
+        if unless is not None and all(unless.get(k) == v for k, v in payload.items()
+                                      if k != "transition"):
+            log.debug("%s: %s, already %s", name, why, phase.name)
+            return
         log.info("%s: %s -> %s (%g%%, %dK)", name, why, phase.name,
                  look.brightness, look.kelvin)
-        self.z2m.set(name, self._payload(name, look, transition))
+        self._send(name, payload)
 
     def _occupied(self, lamp):
         return any(self.occupied.get(s) for s in lamp.sensors)
@@ -195,8 +284,8 @@ class Engine:
                 run.level = step.to
                 log.info("%s: fading to %g%% over %s", name, step.to, _secs(step.secs))
                 lvl = level(step.to)
-                self.z2m.set(name, {"brightness": lvl, "transition": step.secs} if lvl
-                             else {"state": "OFF", "transition": step.secs})
+                self._send(name, {"brightness": lvl, "transition": step.secs} if lvl
+                           else {"state": "OFF", "transition": step.secs})
 
     def _start(self, name, why, transition):
         """The lamp came on by itself: someone is there, so treat it as an
@@ -253,10 +342,11 @@ class Engine:
             bright = new.brightness != old.brightness and self.z2m.is_on(name) and follows
             payload = self._payload(name, new, phase.fade, brightness=bright, color=color)
             if payload:
-                self.z2m.set(name, payload)
+                self._send(name, payload)
 
-    def reconcile(self, why, names=None):
-        """Live-read lamps; the ones that answer ON get the current phase.
+    def reconcile(self, why, names=None, quiet=False):
+        """Live-read lamps; the ones that answer ON, and differ, get the
+        current phase.
 
         A /get is a real ZCL read, so a lamp with its mains cut never answers --
         unlike z2m's cache, which goes on saying ON.
@@ -266,20 +356,27 @@ class Engine:
                  if self.probing.get(n, datetime.min) < now]     # not already asked
         if not names:
             return
-        log.info("%s: reconciling %s", why, ", ".join(names))
+        log.log(logging.DEBUG if quiet else logging.INFO,
+                "%s: reconciling %s", why, ", ".join(names))
         for name in names:
             self.probing[name] = now + PROBE_WINDOW
-            self.z2m.get(name)
+            (self.quiet.add if quiet else self.quiet.discard)(name)
+            dev = self.z2m.devices.get(name)
+            self.z2m.get(name, ("state", "brightness")
+                         + (("color_temp",) if dev and dev.color_temp else ()))
 
-    def _reconciled(self, name):
+    def _reconciled(self, name, live):
         run = self.runs.get(name)
+        # Mid phase fade: carry on with what is left of it, don't cut it short.
+        fade = max(self.rules.reconcile_fade, self._fade_left(self.now()))
         if self.rules.lamps[name].program is None:
-            self.light(name, self.rules.reconcile_fade, "on at reconcile")
+            self.light(name, fade, "on at reconcile", unless=live)
         elif run is None:
-            # On, and nothing of ours is running (e.g. this service restarted).
+            # On, and nothing of ours is running (this service restarted, or
+            # our OFF never arrived).
             self._start(name, "on at reconcile", self.rules.reconcile_fade)
         elif not run.fading:
-            self.light(name, self.rules.reconcile_fade, "on at reconcile", run.level)
+            self.light(name, fade, "on at reconcile", run.level, unless=live)
         # mid fade: leave it
 
     # -- event loop hooks ------------------------------------------------
@@ -303,6 +400,7 @@ class Engine:
                 self._lamp_state(ev)
 
     def _lamp_state(self, ev):
+        self._confirm(ev)
         deadline = self.probing.pop(ev.name, None)
         if ev.data.get("state") == "OFF":
             # Switched off (or our fade to 0): whatever ran is over. A later
@@ -312,7 +410,7 @@ class Engine:
         if ev.data.get("state") != "ON":
             return
         if deadline and self.now() <= deadline:
-            self._reconciled(ev.name)
+            self._reconciled(ev.name, self.z2m.state.get(ev.name, {}))
         elif ev.prev.get("state") == "OFF":
             self.power_on(ev.name, "switched on", mains=False)
 
@@ -321,10 +419,17 @@ class Engine:
         for name, run in list(self.runs.items()):
             if run.until is not None and now >= run.until:
                 self._advance(name)
+        for name, sent in list(self.unconfirmed.items()):
+            if now >= sent.due:
+                self._verify(name, now)
         for name, deadline in list(self.probing.items()):
             if now > deadline:
                 del self.probing[name]
-                log.info("%s: did not answer (unpowered?), left alone", name)
+                log.log(logging.DEBUG if name in self.quiet else logging.INFO,
+                        "%s: did not answer (unpowered?), left alone", name)
+        if now >= self.next_reconcile:
+            self.next_reconcile = now + RECONCILE_EVERY
+            self.reconcile("periodic check", quiet=True)
         if self.boundary_at and now >= self.boundary_at:
             # Normally the planned phase. After a suspend or clock jump the plan
             # can be hours stale, so fade to the phase that is actually current.
@@ -336,8 +441,8 @@ class Engine:
     def seconds_to_next(self, cap):
         times = [r.until for r in self.runs.values() if r.until is not None]
         times += self.probing.values()
+        times += [s.due for s in self.unconfirmed.values()]
+        times.append(self.next_reconcile)
         if self.boundary_at:
             times.append(self.boundary_at)
-        if not times:
-            return cap
         return max(0.0, min(cap, (min(times) - self.now()).total_seconds()))

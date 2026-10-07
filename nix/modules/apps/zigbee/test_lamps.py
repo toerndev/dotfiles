@@ -5,7 +5,7 @@
 import os, tomllib, unittest
 from datetime import datetime, timedelta
 
-from engine import Engine
+from engine import RECONCILE_EVERY, Engine
 from rules import RulesError, level, load, parse
 from z2m import Device, Event
 
@@ -93,19 +93,37 @@ class TestRules(unittest.TestCase):
         self.assertEqual(r.lamps["porch"].program_at(night).name, "porch-night")
         self.assertEqual(r.lamps["porch"].program_at(r.phases[0]).after[1].secs, 120)
 
+    def test_min_is_each_lamps_floor(self):
+        r = rules("""
+[defaults]
+min_brightness = 11.8
+[program.m]
+brightness = "min"
+after = [{ fade = "4m", to = "min" }, { fade = "0s", to = 0 }]
+[lamp.a]
+program = "m"
+[lamp.b]
+min_brightness = 20
+program = "m"
+""", base=BASE.replace("brightness = 0.4", 'brightness = "min"'))
+        a, b, night = r.lamps["a"], r.lamps["b"], r.phases[2]
+        self.assertEqual(level(r.min_brightness), 30)
+        self.assertEqual((a.program.brightness, a.program.after[0].to), (11.8, 11.8))
+        self.assertEqual((b.program.brightness, b.program.after[0].to), (20, 20))
+        self.assertEqual(a.look(night).brightness, 11.8)
+        self.assertEqual(r.lamps["bedroom"].look(night).brightness, 30)
+
+    def test_min_needs_a_floor(self):
+        prog = "[program.m]\nbrightness = 'min'\n[lamp.x]\nprogram = 'm'"
+        with self.assertRaisesRegex(RulesError, "needs min_brightness"):
+            rules(prog)
+        with self.assertRaisesRegex(RulesError, "would switch"):
+            rules(base=BASE.replace("brightness = 0.4", 'brightness = "min"'))
+
     def test_kelvin_range_clamps_the_phase(self):
         r = rules("[lamp.narrow]\nmax_kelvin = 5000\nmin_kelvin = 2700")
         self.assertEqual(r.lamps["narrow"].look(r.phases[0]).kelvin, 5000)
         self.assertEqual(r.lamps["narrow"].look(r.phases[2]).kelvin, 2700)
-
-    def test_cct_reversed_mirrors_within_the_lamps_range(self):
-        z = FakeZ2M(["hall"])
-        r = rules("[lamp.hall]\nmax_kelvin = 5000\ncct_reversed = true")
-        e = Engine(r, z, now=lambda: at(12))
-        e.light("hall", 1, "test")                 # day 6250K -> 5000K = 200, sent as 450
-        e.now = lambda: at(22)
-        e.light("hall", 1, "test")                 # night 2222K = 450, sent as 200
-        self.assertEqual([p["color_temp"] for _, p in z.take()], [450, 200])
 
     def test_typos_are_errors(self):
         for bad, needle in [
@@ -118,10 +136,10 @@ class TestRules(unittest.TestCase):
             ("[lamp.x]\nsensors = 'pir'", "list"),
             ("[lamp.x]\nmin_brightness = 50\nmax_brightness = 40", "above"),
             ("[lamp.x]\nmin_kelvin = 5000\nmax_kelvin = 4000", "above"),
-            ("[lamp.x]\ncct_reversed = 'yes'", "true or false"),
             ("[lamp.x]\nsensors = ['pir']", "need a `program`"),
             ("[lamp.x]\nprogram = 'nope'", "no \\[program.nope\\]"),
             ("[program.p]\nbrightness = 'phse'", "or \"phase\""),
+            ("[program.p]\nafter = [{ fade = '1m', to = 'mn' }]", "or \"min\""),
             ("[program.p]\nafter = [{ hold = '1m', to = 5 }]", "needs a fade"),
             ("[program.p]\nafter = [{ fade = '1m' }]", "needs `to`"),
             ("[program.p]\nafter = [{ hold = '1m', fade = '1m', to = 3 }]", "either"),
@@ -140,9 +158,16 @@ class FakeZ2M:
             self.devices[s] = Device(s, "0x" + s, "EndDevice", "m", "v", "", True,
                                      None, False, True)
         self.state, self.online, self.sent, self.gets = {}, {}, [], []
+        self.lost = set()      # lamps whose commands never arrive
 
     def set(self, name, payload):
+        """z2m updates its cache when the lamp got the command, and only then."""
         self.sent.append((name, payload))
+        if name not in self.lost:
+            echo = {k: v for k, v in payload.items() if k != "transition"}
+            if "brightness" in echo:
+                echo["state"] = "ON"
+            self.state[name] = {**self.state.get(name, {}), **echo}
 
     def get(self, name, keys=("state",)):
         self.gets.append(name)
@@ -170,6 +195,7 @@ class TestEngine(unittest.TestCase):
     def jump(self, t):
         self.t = t
         self.e._plan()
+        self.e.next_reconcile = t + RECONCILE_EVERY
 
     def advance(self, **kw):
         self.t += timedelta(**kw)
@@ -274,6 +300,37 @@ class TestEngine(unittest.TestCase):
                                base=BASE.replace("[lamp.bedroom]\nmin_brightness = 30\n", "")))
         self.ev("state", "bedroom", {"state": "ON"})
         self.assertEqual(self.z.take(), [("bedroom", {"brightness": 152, "color_temp": 160, "transition": 3})])
+
+    def test_lost_command_resends_what_is_missing_with_the_fade_left(self):
+        self.ev("state", "bedroom", {"state": "ON"})
+        self.z.lost.add("bedroom")
+        self.jump(at(15, 59, 59))
+        self.advance(seconds=1)                  # 16:00 colour fade, lost
+        self.z.take()
+        self.z.lost.clear()
+        self.advance(seconds=15)
+        self.assertEqual(self.z.take(), [("bedroom", {"color_temp": 450, "transition": 1785})])
+        self.advance(seconds=15)                 # got through this time
+        self.assertEqual(self.z.take(), [])
+
+    def test_switched_off_while_unconfirmed_is_not_relit(self):
+        self.ev("state", "stairs", {"state": "ON"})
+        self.z.lost.add("stairs")
+        self.ev("announce", "stairs")            # brightness and colour, lost
+        self.ev("state", "stairs", {"state": "OFF"})
+        self.z.take()
+        self.advance(seconds=15)                 # colour can't light it: resent
+        self.assertEqual(self.z.take(), [("stairs", {"color_temp": 160, "transition": 0})])
+
+    def test_periodic_reconcile_continues_a_phase_fade(self):
+        self.jump(at(16, 5))
+        self.advance(minutes=10)
+        self.assertEqual(self.z.gets, ["bedroom", "stairs", "porch"])
+        self.ev("state", "bedroom", {"state": "ON", "brightness": 254, "color_temp": 160})
+        self.assertEqual(self.z.take(), [("bedroom", {"brightness": 254, "color_temp": 450, "transition": 900})])
+        self.advance(minutes=10)
+        self.ev("state", "bedroom", {"state": "ON"})   # live read matches: nothing
+        self.assertEqual(self.z.take(), [])
 
 
 
@@ -404,7 +461,10 @@ class TestPrograms(unittest.TestCase):
         self.advance(minutes=6)                            # resting in the 10% hold
         self.z.take()
         self.ev("bridge", data={"online": True})
-        self.ev("state", "hall", {"state": "ON"})
+        self.ev("state", "hall", {"state": "ON"})          # reads as it should be
+        self.assertEqual(self.sent("hall"), [])
+        self.ev("bridge", data={"online": True})
+        self.ev("state", "hall", {"state": "ON", "brightness": 254})
         self.assertEqual(self.sent("hall"), [{"brightness": 25, "color_temp": 160, "transition": 3}])
         self.advance(minutes=14)
         self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
@@ -421,9 +481,34 @@ class TestPrograms(unittest.TestCase):
         self.advance(seconds=1)
         self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
 
+    def test_lost_off_is_resent_then_caught_by_the_periodic_check(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.ev("state", "pir", {"occupancy": False})
+        self.advance(minutes=19, seconds=59)
+        self.z.take()
+        self.z.lost.add("hall")
+        self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 5}])
+        for _ in range(2):
+            self.advance(seconds=15)
+            self.assertEqual(self.sent("hall"), [{"state": "OFF", "transition": 0}])
+        self.advance(seconds=15)                           # gives up
+        self.assertEqual(self.sent("hall"), [])
+        self.assertNotIn("hall", self.e.unconfirmed)
+        self.z.lost.clear()
+        self.z.gets.clear()
+        self.advance(seconds=(self.e.next_reconcile - self.t).total_seconds())
+        self.assertIn("hall", self.z.gets)
+        self.ev("state", "hall", {"state": "ON"})          # still on: run it again
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 3}])
+        self.advance(minutes=20)
+        self.assertEqual(self.sent("hall")[-1], {"state": "OFF", "transition": 5})
+
     def test_seconds_to_next_wakes_for_steps(self):
         self.ev("state", "pir2", {"occupancy": True})
         self.ev("state", "pir2", {"occupancy": False})
+        self.assertEqual(self.e.seconds_to_next(cap=600), 15)      # check it arrived
+        self.ev("state", "hall", {"brightness": 254, "color_temp": 160})
         self.assertEqual(self.e.seconds_to_next(cap=600), 180)
 
 

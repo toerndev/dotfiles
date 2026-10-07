@@ -63,7 +63,7 @@ WireGuard.
    [Lamp facts](#lamp-facts).
    ```bash
    lampctl startup stairs-bottom
-   lampctl startup stairs-bottom --safe-floor     # on / 50% / 2222K
+   lampctl startup stairs-bottom --safe-floor     # on / the floor / 2222K
    ```
 4. **Rules:** add `[lamp.stairs-bottom]` to `rules.toml` and save. An empty
    section follows the shared phases. The service picks the light up right
@@ -144,15 +144,27 @@ rules need no change. Remove the old entry in the frontend.
   Inputs and lamps are n:m: one sensor can drive several lamps with
   different programs. A rules edit applies at once: a running `after` is
   redone as if the new steps had been in force since the input let go.
+- **The floor:** `[defaults] min_brightness` (a lamp can set its own) is
+  the dimmest a lamp shows while on. Phases and programs write it as
+  `"min"`, so programs shared by several lamps use each lamp's own floor.
+  `--safe-floor` writes it to the drivers as the power-on level.
 - **Per-lamp settings:** `min_brightness`/`max_brightness` clamp every
   phase look (not a program's own levels); `<phase>.<key>` overrides one
   phase for one lamp.
 - **Safety:** colour changes may go to any lamp, since they never switch one
   on. Scheduled brightness changes only go to lamps already on, and to a
   programmed lamp only while it shows the phase look.
-- **After a restart** of this service or z2m, a rules edit, or a lamp
-  appearing in z2m, lamps are read live. The ones that answer ON get the
-  current phase. A lamp with its mains cut can't answer, so it is left alone.
+- **Lost commands:** z2m publishes a lamp's state only when a command got
+  through. One not confirmed within 15s is resent (only what is missing,
+  with what is left of its fade), up to twice; then it is given up, since a
+  lamp switched off at the wall can't answer either. A lamp switched off in
+  the meantime is not relit.
+- **Every 10 minutes**, and after a restart of this service or z2m, a rules
+  edit, or a lamp appearing in z2m, lamps are read live. The ones that answer
+  ON and differ from what they should show get it, finishing a phase fade
+  over the time it has left. A programmed lamp that is on with nothing running
+  (its OFF never arrived) runs its program again. A lamp with its mains cut
+  can't answer, so it is left alone.
 - **Suspend or clock jump:** a late scheduled fade goes to the phase that is
   actually current.
 
@@ -175,8 +187,18 @@ rules need no change. Remove the old entry in the frontend.
   plain connect-and-close (as `lampctl doctor` does) is harmless.
 
 **Lamps: Sunricher HK-CCT drivers** (z2m calls them *Envilar
-ZG50CC-CCT-DRIVER*), firmware `2.9.2_r66`. Tunable white 160–450 mireds
-(6250–2222K), brightness 1–254. Mains comes through a wall switch.
+ZG50CC-CCT-DRIVER*), firmware `2.9.2_r66`. Brightness 1–254. Mains comes
+through a wall switch. Every driver is set with Sunricher's NFC app to:
+
+- **CCT range 200–450** (the app calls it CCT, but it is mireds): 5000–2222K,
+  the LEDs' real range, so mireds sent are physically true. z2m still
+  advertises the model's 160–450 and the engine clamps to that, so phases
+  stay at or below 5000K.
+- **Power-on state on, power-on level 30** (~12%): the same as
+  `--safe-floor` below, which takes the level from `rules.toml`.
+- **Corridor fade time 0s.**
+
+Those settings live in the driver; a replacement driver needs them too.
 
 | name | IEEE |
 |---|---|
@@ -202,7 +224,7 @@ These were measured on the lamps above, and the design depends on them.
   | attribute | value | why |
   |---|---|---|
   | `StartUpOnOff` | **1** (on) | 0 would need the server to light the lamp, and a dark lamp couldn't be fixed from the wall. 255 ("previous") means one Zigbee *off* leaves the wall switch unable to turn it on. |
-  | `StartUpCurrentLevel` | **127** (50%) | See the ramp below. |
+  | `StartUpCurrentLevel` | **30** (~12%) | `rules.toml`'s `[defaults] min_brightness` (11.8% = level 30), the floor. A power-on at night looks the same as a motion trigger and as the last step before off. Costs a slower ramp, below. |
   | `StartUpColorTemperature` | **450** (2222K) | Fail warm: too warm at noon is corrected in seconds, 6250K at 03:00 is not. |
 
   These are fixed on purpose, not tracked from the schedule. They can only
@@ -212,9 +234,10 @@ These were measured on the lamps above, and the design depends on them.
   from 0 to `StartUpCurrentLevel` over ~3s whatever the target, so a higher
   target is brighter at every instant. Light becomes visible after about
   `0.7s + 3s × 60 / level`: 5.2s at 40, 2.1s at 127, 1.4s at 254. 127 is the
-  knee. The price: after 20:00 a switch-on shows ~50% for a few seconds
-  before the rules dim it. `OnOffTransitionTime` does not affect this ramp
-  (tested).
+  knee, but it showed ~50% for a few seconds after 20:00 before the rules
+  dimmed it; the drivers now use 30, which the formula puts at ~6.7s
+  (measured with the old 160–450 setup, not yet re-checked at 30).
+  `OnOffTransitionTime` does not affect this ramp (tested).
 - **Anything z2m doesn't expose can still be read or written.**
   `{"read"|"write": {"cluster": …}}` on `<name>/set` works on every device;
   `lampctl startup` uses it.

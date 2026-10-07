@@ -5,7 +5,7 @@
   lampctl pair                       open joining, report what joins, close joining
   lampctl rename 0x70ac... stairs-bottom
   lampctl startup stairs-bottom      show power-on defaults
-  lampctl startup stairs-bottom --safe-floor   ON / 50% / 2222K (README "Lamp facts")
+  lampctl startup stairs-bottom --safe-floor   ON / min_brightness / 2222K (README "Lamp facts")
   lampctl state stairs-bottom        live read
   lampctl set stairs-bottom --brightness 40 --kelvin 3000 --transition 2
   lampctl check                      validate rules.toml, print each lamp's day
@@ -16,14 +16,15 @@ Talks to the same broker as the service; safe to run while it is running.
 import argparse, json, os, socket, subprocess, sys, time, uuid
 from urllib.parse import urlparse
 
-from rules import PHASE, RulesError, level, load, mireds
+from rules import MIN, PHASE, RulesError, level, load, mireds
 from z2m import Z2M
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Power-on defaults for wall-switched lamps: always come on, dim enough for
-# 03:00 but bright enough to light fast (README "Lamp facts"), warm.
-SAFE_FLOOR = {"onoff": 1, "level": 127, "kelvin": 2222}
+# Power-on defaults for wall-switched lamps: always come on, warm, and at the
+# level of rules.toml's [defaults] min_brightness -- the night trigger level
+# and the last step before off (README "Lamp facts").
+SAFE_FLOOR = {"onoff": 1, "kelvin": 2222}
 # (label, cluster, ZCL attribute, where z2m publishes the decoded value)
 STARTUP = [
     ("on/off", "genOnOff", "startUpOnOff", ("power_on_behavior",)),
@@ -248,8 +249,15 @@ def cmd_startup(a):
     if a.name not in z.devices:
         sys.exit(f"{a.name!r} is not a z2m device")
     if a.safe_floor or a.level is not None or a.kelvin is not None:
+        if a.level is None:
+            try:
+                floor = load(a.rules).min_brightness
+            except (RulesError, OSError) as e:
+                sys.exit(f"cannot read the floor from rules.toml: {e}")
+            if not floor:
+                sys.exit("rules.toml has no [defaults] min_brightness; pass --level")
         want = {"onoff": 1,
-                "level": SAFE_FLOOR["level"] if a.level is None else level(a.level),
+                "level": level(floor if a.level is None else a.level),
                 "kelvin": a.kelvin or SAFE_FLOOR["kelvin"]}
         values = [want["onoff"], want["level"], mireds(want["kelvin"])]
         for (_, cluster, attr, _), v in zip(STARTUP, values):
@@ -282,7 +290,8 @@ def cmd_check(a):
     print(f"{a.rules}: OK\n")
     for p in r.phases:
         fade = f"fade {p.fade:g}s at start" if p.fade else "applies on turn-on only"
-        print(f"  {p.at} {p.name:10} {p.brightness:g}%  {p.kelvin}K  ({fade})")
+        b = "min" if p.brightness == MIN else f"{p.brightness:g}%"
+        print(f"  {p.at} {p.name:10} {b}  {p.kelvin}K  ({fade})")
     for name, lamp in r.lamps.items():
         print(f"\n[{name}]" + (f"  sensors: {', '.join(lamp.sensors)}" if lamp.sensors else ""))
         for p in r.phases:
@@ -323,7 +332,8 @@ def main():
     s = sub.add_parser("startup")
     s.add_argument("name")
     s.add_argument("--safe-floor", action="store_true")
-    s.add_argument("--level", type=float, help="power-on brightness, percent")
+    s.add_argument("--level", type=float,
+                   help="power-on brightness, percent (default: [defaults] min_brightness)")
     s.add_argument("--kelvin", type=int, help="power-on colour temperature")
     s.set_defaults(fn=cmd_startup)
     sub.add_parser("check").set_defaults(fn=cmd_check)

@@ -6,16 +6,17 @@ unknown keys are errors -- because in a file that is edited live, a typo'd key
 that is silently ignored is the worst possible failure mode.
 """
 import re, tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import timedelta
 
 MAX_FADE_S = 6553          # ZCL transition time is a uint16 of deciseconds
 LEVEL_MAX = 254
 
 LAMP_KEYS = {"min_brightness", "max_brightness", "min_kelvin", "max_kelvin",
-             "cct_reversed", "sensors", "program"}
+             "sensors", "program"}
 PHASE_OVERRIDES = {"brightness", "kelvin", "program"}
 PHASE = "phase"            # a program brightness that means "the lamp's phase look"
+MIN = "min"                # a brightness that means "the lamp's min_brightness"
 
 
 class RulesError(ValueError):
@@ -51,6 +52,17 @@ def _duration(v, where, cap=None):
     return int(s) if s == int(s) else s
 
 
+def _brightness(v, where, words):
+    """A percentage, or one of `words` (PHASE, MIN)."""
+    if v in words:
+        return v
+    try:
+        return _percent(v, where)
+    except RulesError:
+        raise RulesError(f"{where}: expected a percentage 0-100 or "
+                         + " or ".join(f'"{w}"' for w in words) + f", got {v!r}") from None
+
+
 def _percent(v, where):
     if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= 100:
         raise RulesError(f"{where}: expected a percentage 0-100, got {v!r}")
@@ -80,7 +92,7 @@ def _keys(table, allowed, where, required=()):
 class Phase:
     name: str
     start: int                 # minutes after midnight
-    brightness: float          # percent
+    brightness: float | str    # percent, or MIN
     kelvin: int
     fade: float | None         # seconds; None = only applies when a lamp turns on
 
@@ -116,7 +128,6 @@ class Lamp:
     max_brightness: float = 100.0
     min_kelvin: int = 1000
     max_kelvin: int = 10000
-    cct_reversed: bool = False     # WW/CW wired the wrong way round
     sensors: tuple = ()
     program: Program | None = None
     per_phase: dict = field(default_factory=dict)   # phase name -> {key: value}
@@ -127,6 +138,8 @@ class Lamp:
     def look(self, phase):
         o = self.per_phase.get(phase.name, {})
         b = o.get("brightness", phase.brightness)
+        if b == MIN:
+            b = self.min_brightness
         k = o.get("kelvin", phase.kelvin)
         return Look(min(self.max_brightness, max(self.min_brightness, b)),
                     min(self.max_kelvin, max(self.min_kelvin, k)))
@@ -137,6 +150,7 @@ class Rules:
     phases: tuple              # sorted by start
     lamps: dict                # name -> Lamp
     programs: dict             # name -> Program
+    min_brightness: float = 0.0    # [defaults]; lamps without their own inherit it
     power_on_fade: float = 1.0
     reconcile_fade: float = 3.0
 
@@ -187,7 +201,7 @@ def _phase(i, p):
         raise RulesError(f"{where}: at must be \"HH:MM\", got {p['at']!r}")
     fade = p.get("fade")
     return Phase(name, int(m[1]) * 60 + int(m[2]),
-                 _percent(p["brightness"], f"{where} brightness"),
+                 _brightness(p["brightness"], f"{where} brightness", (MIN,)),
                  _kelvin(p["kelvin"], f"{where} kelvin"),
                  None if fade is None else _duration(fade, f"{where} fade", MAX_FADE_S))
 
@@ -203,21 +217,15 @@ def _step(i, t, where):
             raise RulesError(f"{where}: a hold stays where it is; `to` needs a fade")
         return Step(_duration(t["hold"], f"{where} hold"))
     if "to" not in t:
-        raise RulesError(f"{where}: a fade needs `to` (percent, 0 = off)")
+        raise RulesError(f"{where}: a fade needs `to` (percent, 0 = off, or \"min\")")
     return Step(_duration(t["fade"], f"{where} fade", MAX_FADE_S),
-                _percent(t["to"], f"{where} to"))
+                _brightness(t["to"], f"{where} to", (MIN,)))
 
 
 def _program(name, t):
     where = f"[program.{name}]"
     _keys(t, {"brightness", "after"}, where)
-    b = t.get("brightness", PHASE)
-    if b != PHASE:
-        try:
-            b = _percent(b, f"{where} brightness")
-        except RulesError:
-            raise RulesError(f"{where} brightness: expected a percentage 0-100 "
-                             f"or \"phase\", got {b!r}") from None
+    b = _brightness(t.get("brightness", PHASE), f"{where} brightness", (PHASE, MIN))
     after = t.get("after", [])
     if not isinstance(after, list):
         raise RulesError(f"{where} after: expected a list of steps")
@@ -228,6 +236,18 @@ def _program(name, t):
     return Program(name, b, steps)
 
 
+def _resolved(prog, floor, where):
+    """`prog` with "min" replaced by this lamp's floor. Programs are shared, so
+    "min" can only be resolved per lamp."""
+    if MIN not in (prog.brightness, *(s.to for s in prog.after)):
+        return prog
+    if not floor:
+        raise RulesError(f"{where}: [program.{prog.name}] uses \"min\", "
+                         f"which needs min_brightness above 0")
+    return replace(prog, brightness=floor if prog.brightness == MIN else prog.brightness,
+                   after=tuple(replace(s, to=floor) if s.to == MIN else s for s in prog.after))
+
+
 def _lamp_value(key, v, where, programs):
     if key == "program":
         if v not in programs:
@@ -236,17 +256,13 @@ def _lamp_value(key, v, where, programs):
         return programs[v]
     if key in ("kelvin", "min_kelvin", "max_kelvin"):
         return _kelvin(v, where)
-    if key == "cct_reversed":
-        if not isinstance(v, bool):
-            raise RulesError(f"{where}: expected true or false, got {v!r}")
-        return v
     return _percent(v, where)
 
 
-def _lamp(name, t, phase_names, programs):
+def _lamp(name, t, phase_names, programs, min_brightness):
     where = f"[lamp.{name}]"
     _keys(t, LAMP_KEYS | phase_names, where)
-    kw = {}
+    kw = {"min_brightness": min_brightness}
     for key in LAMP_KEYS - {"sensors"}:
         if key in t:
             kw[key] = _lamp_value(key, t[key], f"{where} {key}", programs)
@@ -258,6 +274,12 @@ def _lamp(name, t, phase_names, programs):
         _keys(t[pn], PHASE_OVERRIDES, f"{where} {pn}.*")
         per_phase[pn] = {k: _lamp_value(k, v, f"{where} {pn}.{k}", programs)
                          for k, v in t[pn].items()}
+    floor = kw["min_brightness"]
+    if "program" in kw:
+        kw["program"] = _resolved(kw["program"], floor, where)
+    for pn, o in per_phase.items():
+        if "program" in o:
+            o["program"] = _resolved(o["program"], floor, f"{where} {pn}.program")
     lamp = Lamp(name, sensors=tuple(sensors), per_phase=per_phase, **kw)
     if lamp.min_brightness > lamp.max_brightness:
         raise RulesError(f"{where}: min_brightness is above max_brightness")
@@ -272,7 +294,8 @@ def _lamp(name, t, phase_names, programs):
 def parse(raw):
     _keys(raw, {"defaults", "phase", "lamp", "program"}, "top level")
     d = raw.get("defaults", {})
-    _keys(d, {"power_on_fade", "reconcile_fade"}, "[defaults]")
+    _keys(d, {"min_brightness", "power_on_fade", "reconcile_fade"}, "[defaults]")
+    floor = _percent(d.get("min_brightness", 0), "[defaults] min_brightness")
 
     phases = sorted((_phase(i, p) for i, p in enumerate(raw.get("phase", []))),
                     key=lambda p: p.start)
@@ -292,10 +315,17 @@ def parse(raw):
     programs = {n: _program(n, t) for n, t in programs.items()}
     lamps = raw.get("lamp", {})
     _keys(lamps, lamps.keys(), "[lamp]")
+    lamps = {n: _lamp(n, t, set(names), programs, floor) for n, t in lamps.items()}
+    for p in phases:
+        for lamp in lamps.values():
+            if p.brightness == MIN and not lamp.min_brightness and "brightness" not in lamp.per_phase.get(p.name, {}):
+                raise RulesError(f"[[phase]] {p.name}: brightness \"min\" would switch "
+                                 f"[lamp.{lamp.name}] off; it needs min_brightness above 0")
     return Rules(
         phases=tuple(phases),
-        lamps={n: _lamp(n, t, set(names), programs) for n, t in lamps.items()},
+        lamps=lamps,
         programs=programs,
+        min_brightness=floor,
         power_on_fade=_duration(d.get("power_on_fade", 1), "[defaults] power_on_fade", MAX_FADE_S),
         reconcile_fade=_duration(d.get("reconcile_fade", 3), "[defaults] reconcile_fade", MAX_FADE_S),
     )
