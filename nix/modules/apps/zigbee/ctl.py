@@ -293,7 +293,10 @@ def cmd_check(a):
         b = "min" if p.brightness == MIN else f"{p.brightness:g}%"
         print(f"  {p.at} {p.name:10} {b}  {p.kelvin}K  ({fade})")
     for name, lamp in r.lamps.items():
-        print(f"\n[{name}]" + (f"  sensors: {', '.join(lamp.sensors)}" if lamp.sensors else ""))
+        sensors = [s + (f" (<= {r.sensors[s].max_lux:g} lx)"
+                        if s in r.sensors and r.sensors[s].max_lux is not None else "")
+                   for s in lamp.sensors]
+        print(f"\n[{name}]" + (f"  sensors: {', '.join(sensors)}" if sensors else ""))
         for p in r.phases:
             look = lamp.look(p)
             line = f"  {p.name:10} {look.brightness:g}% (level {level(look.brightness)})  {look.kelvin}K"

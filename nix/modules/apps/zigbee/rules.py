@@ -145,11 +145,18 @@ class Lamp:
                     min(self.max_kelvin, max(self.min_kelvin, k)))
 
 
+@dataclass(frozen=True)
+class Sensor:
+    name: str
+    max_lux: float | None = None   # motion only lights a lamp that is off at or below this
+
+
 @dataclass(frozen=True, eq=False)
 class Rules:
     phases: tuple              # sorted by start
     lamps: dict                # name -> Lamp
     programs: dict             # name -> Program
+    sensors: dict = field(default_factory=dict)   # name -> Sensor; only those with settings
     min_brightness: float = 0.0    # [defaults]; lamps without their own inherit it
     power_on_fade: float = 1.0
     reconcile_fade: float = 3.0
@@ -291,8 +298,21 @@ def _lamp(name, t, phase_names, programs, min_brightness):
     return lamp
 
 
+def _sensor(name, t, used):
+    where = f"[sensor.{name}]"
+    _keys(t, {"max_lux"}, where)
+    if name not in used:
+        raise RulesError(f"{where}: no lamp lists {name!r} in its sensors"
+                         + (f"; they list: {', '.join(sorted(used))}" if used else ""))
+    lux = t.get("max_lux")
+    if lux is not None and (isinstance(lux, bool) or not isinstance(lux, (int, float))
+                            or lux < 0):
+        raise RulesError(f"{where} max_lux: expected lux, a number 0 or above, got {lux!r}")
+    return Sensor(name, lux)
+
+
 def parse(raw):
-    _keys(raw, {"defaults", "phase", "lamp", "program"}, "top level")
+    _keys(raw, {"defaults", "phase", "lamp", "program", "sensor"}, "top level")
     d = raw.get("defaults", {})
     _keys(d, {"min_brightness", "power_on_fade", "reconcile_fade"}, "[defaults]")
     floor = _percent(d.get("min_brightness", 0), "[defaults] min_brightness")
@@ -316,6 +336,10 @@ def parse(raw):
     lamps = raw.get("lamp", {})
     _keys(lamps, lamps.keys(), "[lamp]")
     lamps = {n: _lamp(n, t, set(names), programs, floor) for n, t in lamps.items()}
+    sensors = raw.get("sensor", {})
+    _keys(sensors, sensors.keys(), "[sensor]")
+    used = {s for lamp in lamps.values() for s in lamp.sensors}
+    sensors = {n: _sensor(n, t, used) for n, t in sensors.items()}
     for p in phases:
         for lamp in lamps.values():
             if p.brightness == MIN and not lamp.min_brightness and "brightness" not in lamp.per_phase.get(p.name, {}):
@@ -325,6 +349,7 @@ def parse(raw):
         phases=tuple(phases),
         lamps=lamps,
         programs=programs,
+        sensors=sensors,
         min_brightness=floor,
         power_on_fade=_duration(d.get("power_on_fade", 1), "[defaults] power_on_fade", MAX_FADE_S),
         reconcile_fade=_duration(d.get("reconcile_fade", 3), "[defaults] reconcile_fade", MAX_FADE_S),

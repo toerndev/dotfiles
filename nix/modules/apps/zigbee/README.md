@@ -83,12 +83,17 @@ rules need no change. Remove the old entry in the frontend.
    - SNZB-03PR2 (firmware 1.0.5): z2m 2.6.3 has no converter for it and pairs
      it with an *Automatically generated definition*. That exposes only
      `occupancy`, `illuminance` and `battery`, with no timeout setting, so
-     the sensor's built-in timeout applies: `occupancy: false` comes 45–55s
-     after the last movement (measured twice). A `hold` step makes it longer.
+     the sensor's built-in timeout applies. `occupancy: false` came 45–55s
+     after the last movement when first measured, but on 2026-10-09
+     `stairs-bottom-pir` cleared 12–20s after it triggered (5–10s after its
+     last `true`). Don't rely on it: start `after` with a `hold`.
      It only reports changes: about every 10s while it keeps seeing motion,
      then nothing until the `false`. Silence in between is normal.
-   - Hue outdoor sensor: `occupancy_timeout`, under Settings (specific).
-     Stored in `devices.yaml`.
+   - Hue outdoor sensor (SML004, `driveway-pir`): z2m has a real converter.
+     `occupancy_timeout` (factory 0) and `motion_sensitivity` are written to
+     the device; `driveway-pir` has 30s and `medium`:
+     `mosquitto_pub -t zigbee2mqtt/driveway-pir/set -m '{"occupancy_timeout": 30, "motion_sensitivity": "medium"}'`.
+     It also reports `illuminance` (lux), which `max_lux` (step 4) uses.
 
    Check the model's z2m page for the exact names. If the frontend says
    *Automatically generated definition*, the model-specific settings are
@@ -110,6 +115,10 @@ rules need no change. Remove the old entry in the frontend.
    ```
    A light can have several sensors: it stays held while any is occupied. A
    sensor can drive several lights, each with its own program.
+   **Only after dark:** a sensor that reports `illuminance` can gate its
+   lamps with `[sensor.<name>] max_lux = 40`. Motion then only lights a lamp
+   that is off when the lux is at or below that; see
+   [How the rules behave](#how-the-rules-behave).
 5. Watch it: `journalctl -u zigbee-lamps -f` shows `motion on stairs-pir`,
    `clear on stairs-pir [stairs: hold 30s, fade 2m to 0%]`,
    `fading to 0% over 2m`, `program done, off`.
@@ -131,7 +140,8 @@ rules need no change. Remove the old entry in the frontend.
 - **Programs** (`[program.<name>]`) are what a lamp does when an input
   lights it. A lamp with `program = "<name>"` (or `<phase>.program`):
   1. An input holds it at the program's `brightness`: a percent, or the
-     phase look. Inputs today are the lamp's `sensors`; it is held while any
+     phase look. The phase look is the ceiling: a level above it shows the
+     phase look and follows phase fades, at every step and at phase starts. Inputs today are the lamp's `sensors`; it is held while any
      of them reports occupancy.
   2. When every input has let go, the `after` steps run in order:
      `{ hold = … }` stays, `{ fade = …, to = … }` fades (0 = off). The last
@@ -144,6 +154,12 @@ rules need no change. Remove the old entry in the frontend.
   Inputs and lamps are n:m: one sensor can drive several lamps with
   different programs. A rules edit applies at once: a running `after` is
   redone as if the new steps had been in force since the input let go.
+- **Dark only** (`[sensor.<name>] max_lux`): motion on that sensor only
+  lights a lamp that is off while the sensor's last `illuminance` is at or
+  below `max_lux`. A lamp already on (its program running, or switched on)
+  ignores the lux, because the lamp lights up its own sensor and would
+  otherwise go out on someone standing under it. No reading yet: it lights.
+  The journal says `motion on … ignored, 600 lx > max_lux 40`.
 - **The floor:** `[defaults] min_brightness` (a lamp can set its own) is
   the dimmest a lamp shows while on. Phases and programs write it as
   `"min"`, so programs shared by several lamps use each lamp's own floor.

@@ -24,6 +24,7 @@ class Device:
     color_temp: tuple | None   # (min, max) mireds, None if not a CCT light
     brightness: bool
     occupancy: bool
+    illuminance: bool = False
 
 
 @dataclass(frozen=True)
@@ -52,7 +53,8 @@ def _device(d):
         description=definition.get("description", ""),
         interviewed=d.get("interview_state", "SUCCESSFUL") == "SUCCESSFUL",
         color_temp=(ct["value_min"], ct["value_max"]) if ct and "value_min" in ct else None,
-        brightness="brightness" in feats, occupancy="occupancy" in feats)
+        brightness="brightness" in feats, occupancy="occupancy" in feats,
+        illuminance="illuminance" in feats)
 
 
 class Z2M:

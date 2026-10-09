@@ -10,7 +10,7 @@
 # Adding lights and sensors: README.md in this directory.
 
 [defaults]
-min_brightness = 11.8   # = level 30, the drivers' power-on level. The floor: the
+min_brightness = 15     # = level 30, the drivers' power-on level. The floor: the
                         # dimmest a lamp shows while on, written "min" below.
                         # `lampctl startup --safe-floor` writes it to a driver.
 power_on_fade = "1s"    # how fast a lamp that just turned on moves to its phase
@@ -72,24 +72,37 @@ fade = "30m"
 #                             { fade = "2m", to = 10 }    percent or "min"; 0 = off
 #                           The last level stays until the next input.
 #
+# The phase is the ceiling: a program level above the lamp's phase look shows
+# the phase look instead, and follows the phase's fades (night holds 50% even
+# where a program says 100). So programs set the timing; phases the brightness.
+#
 # An input that comes back during `after` starts again from `brightness`.
-# Occupancy sensors only let go after their own timeout (SNZB-03PR2: ~50s,
-# README), so `after` starts that long after the last movement.
+# Occupancy sensors only let go after their own timeout (SNZB-03PR2: ~5-15s
+# after the last motion report, README), so a first step of
+# { hold = "1m" } or so keeps a lamp up for someone walking back and forth.
 # ---------------------------------------------------------------------------
 
 [program.motion]        # the PIR holds ~1m after the last movement
 brightness = 100
 after = [
+  { hold = "30s" },
   { fade = "0s", to = 50 },
-  { fade = "4m", to = "min" },
-  { hold = "10m" },
+  { fade = "5m", to = "min" },
+  { hold = "5m" },
   { fade = "0s", to = 0 },
+]
+
+[program.driveway]      # outdoors: full light while there's motion, then off
+brightness = 100
+after = [
+  { hold = "1m" },
+  { fade = "30s", to = 0 },
 ]
 
 [program.motion-late]   # 21:30-06:00
 brightness = "min"
 after = [
-  { hold = "4m" },
+  { hold = "5m" },
   { fade = "0s", to = 0 },
 ]
 
@@ -113,6 +126,12 @@ after = [
 # power back): lit to the phase look, then `after` as if an input let go.
 # ---------------------------------------------------------------------------
 
+[lamp.driveway]         # Hue White A60 E27: dimmable, no colour temperature
+sensors = ["driveway-pir"]
+program = "driveway"
+night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
+late.brightness = 100   # hour (the phase is the program's ceiling)
+
 [lamp.bedroom-ceiling]
 min_brightness = 30     # no sensor, stays on: never dimmer than 30%
 
@@ -125,3 +144,17 @@ late.program = "motion-late"
 sensors = ["hallway-pir"]
 program = "motion"
 late.program = "motion-late"
+
+# ---------------------------------------------------------------------------
+# Per-sensor settings, optional. A [sensor.<z2m name>] must be listed in some
+# lamp's `sensors`.
+#
+#   max_lux = 40        motion only lights a lamp that is off while the
+#                       sensor's last illuminance is at or below this. A lamp
+#                       already on ignores it (it lights up its own sensor).
+#                       No reading yet: lights. Hue's bridge calls < ~40 lx
+#                       dark; check `lampctl state <sensor>` at dusk on site.
+# ---------------------------------------------------------------------------
+
+[sensor.driveway-pir]   # Hue outdoor: occupancy_timeout 30s, sensitivity medium
+max_lux = 40

@@ -9,6 +9,12 @@ Two kinds of lamp, decided by whether rules.toml gives it a `program`:
               brightness; when every input has let go, the program's `after`
               steps run in order and the last level stays. Turning the lamp on
               counts as an input that has just let go, lit to the phase look.
+              The phase is the ceiling: a program level at or above the
+              lamp's phase look IS the phase look, and follows phase fades.
+
+A sensor with `max_lux` only lights a lamp that is off while its own last
+illuminance is at or below it. A lamp already on ignores the lux: the lamp
+lights up its sensor, and motion while it is on must keep it on.
 
 Each programmed lamp that is doing something has one Run: where it is in its
 program. Inputs and lamps are n:m -- a sensor can drive several lamps, each
@@ -132,6 +138,10 @@ class Engine:
                     problems.append(f"sensor {s!r} of {name!r} is not a z2m device")
                 elif not dev.occupancy:
                     problems.append(f"sensor {s!r} of {name!r} has no occupancy")
+                elif s in self.rules.sensors and self.rules.sensors[s].max_lux is not None \
+                        and not dev.illuminance:
+                    problems.append(f"sensor {s!r} has max_lux but no illuminance; "
+                                    f"its motion always lights")
         if problems != self._warned:
             for p in problems:
                 log.warning("%s", p)
@@ -240,17 +250,31 @@ class Engine:
     def _program(self, name):
         return self.rules.lamps[name].program_at(self.rules.phase_at(self.now()))
 
+    def _capped(self, name, b):
+        """A program level, never brighter than the lamp's phase look. At or
+        above it, it is the phase look (PHASE), so phase fades carry it."""
+        if b == PHASE or b == 0:
+            return b
+        look = self.rules.lamps[name].look(self.rules.phase_at(self.now()))
+        return PHASE if b >= look.brightness else b
+
+    def _percent(self, name, b):
+        if b != PHASE:
+            return b
+        return self.rules.lamps[name].look(self.rules.phase_at(self.now())).brightness
+
     def hold(self, name, why):
         """An input holds the lamp on at its program's brightness."""
         prog = self._program(name)
         run = self.runs.get(name)
         if run and run.held:
             return
-        if run and run.level == prog.brightness and not run.fading:
+        b = self._capped(name, prog.brightness)
+        if run and run.level == b and not run.fading:
             log.info("%s: %s, staying at %s", name, why, _pct(run.level))
         else:
-            self.light(name, self.rules.power_on_fade, f"{why} [{prog.name}]", prog.brightness)
-        self.runs[name] = Run(prog.brightness)
+            self.light(name, self.rules.power_on_fade, f"{why} [{prog.name}]", b)
+        self.runs[name] = Run(b)
 
     def let_go(self, name, why):
         """Every input has let go: run the program's after-steps."""
@@ -281,9 +305,11 @@ class Engine:
             run.until += timedelta(seconds=step.secs)
             run.fading = step.to is not None
             if run.fading:
-                run.level = step.to
-                log.info("%s: fading to %g%% over %s", name, step.to, _secs(step.secs))
-                lvl = level(step.to)
+                run.level = self._capped(name, step.to)
+                pct = self._percent(name, run.level)
+                log.info("%s: fading to %g%%%s over %s", name, pct,
+                         " (the phase)" if run.level == PHASE else "", _secs(step.secs))
+                lvl = level(pct)
                 self._send(name, {"brightness": lvl, "transition": step.secs} if lvl
                            else {"state": "OFF", "transition": step.secs})
 
@@ -326,9 +352,26 @@ class Engine:
             return
         for name in self.rules.sensor_lamps.get(sensor, []):
             if occupied:
+                if too_bright := self._too_bright(sensor, name):
+                    log.log(logging.INFO if changed else logging.DEBUG,
+                            "%s: motion on %s ignored, %s", name, sensor, too_bright)
+                    continue
                 self.hold(name, f"motion on {sensor}")
             elif not self._occupied(self.rules.lamps[name]):
                 self.let_go(name, f"clear on {sensor}")
+
+    def _too_bright(self, sensor, name):
+        """Why motion on `sensor` must not light lamp `name`, or None.
+        No reading yet fails toward light."""
+        cfg = self.rules.sensors.get(sensor)
+        if cfg is None or cfg.max_lux is None:
+            return None
+        if name in self.runs or self.z2m.is_on(name):
+            return None
+        lux = self.z2m.state.get(sensor, {}).get("illuminance")
+        if not isinstance(lux, (int, float)) or lux <= cfg.max_lux:
+            return None
+        return f"{lux:g} lx > max_lux {cfg.max_lux:g}"
 
     def boundary(self, phase):
         """A phase with a fade has started: fade lamps to whatever changed."""
@@ -337,6 +380,8 @@ class Engine:
         for name, lamp in self.rules.lamps.items():
             new, old = lamp.look(phase), lamp.look(prev)
             run = self.runs.get(name)
+            if run and run.level not in (PHASE, 0) and run.level > new.brightness:
+                run.level = PHASE          # the phase is the ceiling: down with it
             follows = lamp.program is None or (run is not None and run.level == PHASE)
             color = new.kelvin != old.kelvin            # safe on any lamp
             bright = new.brightness != old.brightness and self.z2m.is_on(name) and follows
@@ -366,6 +411,11 @@ class Engine:
                          + (("color_temp",) if dev and dev.color_temp else ()))
 
     def _reconciled(self, name, live):
+        if name in self.unconfirmed:
+            # The read can predate a command of ours still in flight (a rules
+            # edit sends both at once); _verify follows that command up.
+            log.debug("%s: command in flight, reconcile skipped", name)
+            return
         run = self.runs.get(name)
         # Mid phase fade: carry on with what is left of it, don't cut it short.
         fade = max(self.rules.reconcile_fade, self._fade_left(self.now()))

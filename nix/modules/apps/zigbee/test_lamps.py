@@ -3,6 +3,7 @@
   python3 -m unittest -v        # from this directory; needs no broker
 """
 import os, tomllib, unittest
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 from engine import RECONCILE_EVERY, Engine
@@ -145,6 +146,11 @@ program = "m"
             ("[program.p]\nafter = [{ hold = '1m', fade = '1m', to = 3 }]", "either"),
             ("[program.p]\nafter = [{ fade = '1m', to = 0 }, { hold = '1m' }]", "last step"),
             ("[program.p]\nafter = [{ wait = '1m' }]", "unknown key"),
+            ("[sensor.pir]\nmax_lux = 40", "no lamp lists"),
+            ("[lamp.x]\nsensors = ['pir']\nprogram = 'p'\n[program.p]\n"
+             "[sensor.pir]\nmax_lx = 40", "unknown key"),
+            ("[lamp.x]\nsensors = ['pir']\nprogram = 'p'\n[program.p]\n"
+             "[sensor.pir]\nmax_lux = -1", "0 or above"),
         ]:
             with self.subTest(bad), self.assertRaisesRegex(RulesError, needle):
                 rules(bad, base=BASE.split("[lamp.bedroom]")[0])
@@ -269,7 +275,7 @@ class TestEngine(unittest.TestCase):
         self.advance(seconds=10)
         self.assertEqual(self.z.take(), [
             ("porch", {"brightness": 1, "color_temp": 450, "transition": 1}),
-            ("porch", {"brightness": 13, "transition": 45})])
+            ("porch", {"brightness": 1, "transition": 45})])     # 5%, capped at the phase
 
     def test_power_on_of_motion_lamp_lights_then_fades(self):
         self.ev("announce", "porch")
@@ -334,6 +340,57 @@ class TestEngine(unittest.TestCase):
 
 
 
+class TestLux(unittest.TestCase):
+    """[sensor.*] max_lux: motion lights a lamp that is off only when dark."""
+
+    def setUp(self):
+        self.t = at(12)
+        self.z = FakeZ2M(["bedroom", "stairs", "porch"])
+        self.z.devices["pir"] = replace(self.z.devices["pir"], illuminance=True)
+        self.e = Engine(rules("[sensor.pir]\nmax_lux = 40"), self.z, now=lambda: self.t)
+
+    ev, advance = TestEngine.ev, TestEngine.advance
+
+    def test_bright_motion_leaves_an_off_lamp_off(self):
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 600})
+        self.ev("state", "pir", {"occupancy": False})
+        self.assertEqual(self.z.take(), [])
+        self.assertNotIn("porch", self.e.runs)
+
+    def test_dark_motion_lights(self):
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 40})
+        self.assertEqual([n for n, _ in self.z.take()], ["porch"])
+
+    def test_dusk_during_occupancy_lights_on_the_next_report(self):
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 60})
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 30})
+        self.assertEqual([n for n, _ in self.z.take()], ["porch"])
+
+    def test_lamp_lighting_its_own_sensor_keeps_retriggering(self):
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 10})
+        self.ev("state", "pir", {"occupancy": False, "illuminance": 300})
+        self.advance(seconds=10)                           # into the 2m fade to 0
+        self.z.take()
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 300})
+        self.assertEqual(self.z.take(), [("porch", {"brightness": 254, "color_temp": 160,
+                                                    "transition": 1})])
+
+    def test_a_lamp_switched_on_ignores_lux(self):
+        self.z.state["porch"] = {"state": "ON"}
+        self.ev("state", "pir", {"occupancy": True, "illuminance": 600})
+        self.assertEqual([n for n, _ in self.z.take()], ["porch"])
+
+    def test_no_reading_fails_toward_light(self):
+        self.ev("state", "pir", {"occupancy": True})
+        self.assertEqual([n for n, _ in self.z.take()], ["porch"])
+
+    def test_warns_when_the_sensor_has_no_illuminance(self):
+        self.z.devices["pir"] = replace(self.z.devices["pir"], illuminance=False)
+        with self.assertLogs("engine", "WARNING") as logs:
+            self.e.check_names()
+        self.assertIn("max_lux but no illuminance", logs.output[0])
+
+
 class TestPrograms(unittest.TestCase):
     """A multi-step program, shared sensors, and how runs meet the rest."""
 
@@ -391,15 +448,17 @@ class TestPrograms(unittest.TestCase):
             ("hall", {"brightness": 254, "color_temp": 160, "transition": 1}),
             ("porch", {"state": "OFF", "transition": 120})])
 
-    def test_program_brightness_ignores_the_phase_but_not_its_colour(self):
-        self.jump(at(23))
+    def test_program_brightness_is_capped_by_the_phase(self):
+        self.jump(at(23))                                  # night: 0.4%
         self.ev("state", "pir2", {"occupancy": True})
-        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 450, "transition": 1}])
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "color_temp": 450, "transition": 1}])
+        self.ev("state", "pir2", {"occupancy": False})
+        self.advance(minutes=3)
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "transition": 120}])   # 10%, capped
 
     def test_power_on_shows_the_phase_then_runs_after(self):
-        self.jump(at(21))
         self.ev("announce", "hall")
-        self.assertEqual(self.sent("hall"), [{"brightness": 1, "color_temp": 450, "transition": 1}])
+        self.assertEqual(self.sent("hall"), [{"brightness": 254, "color_temp": 160, "transition": 1}])
         self.advance(minutes=3)
         self.assertEqual(self.sent("hall"), [{"brightness": 25, "transition": 120}])
 
@@ -412,12 +471,33 @@ class TestPrograms(unittest.TestCase):
         self.advance(seconds=1)
         self.assertEqual(self.sent("hall"), [{"brightness": 1, "transition": 1800}])
 
-    def test_phase_fade_leaves_a_program_brightness_alone(self):
-        self.ev("state", "pir2", {"occupancy": True})      # held at 100%
+    def test_phase_fade_carries_a_held_lamp_down(self):
+        self.ev("state", "pir2", {"occupancy": True})      # 100% is the day phase
         self.ev("state", "hall", {"state": "ON"})
         self.z.take()
         self.jump(at(19, 59, 59))
         self.advance(seconds=1)
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "transition": 1800}])
+
+    def test_phase_fade_caps_a_program_level_above_it(self):
+        self.jump(at(19, 50))
+        self.ev("state", "pir2", {"occupancy": True})
+        self.ev("state", "pir2", {"occupancy": False})
+        self.advance(minutes=6)                            # resting in the 10% hold
+        self.ev("state", "hall", {"state": "ON"})
+        self.z.take()
+        self.jump(at(19, 59, 59))
+        self.advance(seconds=1)                            # night: 0.4%
+        self.assertEqual(self.sent("hall"), [{"brightness": 1, "transition": 1800}])
+        self.assertEqual(self.e.runs["hall"].level, "phase")
+
+    def test_reconcile_skips_a_lamp_with_a_command_in_flight(self):
+        self.ev("state", "pir2", {"occupancy": True})
+        self.z.lost.add("hall")                            # our OFF has not landed yet
+        self.ev("bridge", data={"online": True})
+        self.e._send("hall", {"state": "OFF", "transition": 0})
+        self.z.take()
+        self.ev("state", "hall", {"state": "ON", "brightness": 254})   # read predates it
         self.assertEqual(self.sent("hall"), [])
 
     def test_steps_catch_up_after_a_suspend(self):
@@ -459,6 +539,7 @@ class TestPrograms(unittest.TestCase):
         self.ev("state", "pir", {"occupancy": True})
         self.ev("state", "pir", {"occupancy": False})
         self.advance(minutes=6)                            # resting in the 10% hold
+        self.advance(seconds=15)                           # ...and z2m has confirmed it
         self.z.take()
         self.ev("bridge", data={"online": True})
         self.ev("state", "hall", {"state": "ON"})          # reads as it should be
