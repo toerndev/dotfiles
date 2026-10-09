@@ -55,7 +55,7 @@ fade = "30m"
 [[phase]]
 name = "late"
 at = "21:30"
-brightness = "min"      # level 1 was too dim to tell on from off
+brightness = 35
 kelvin = 2222
 fade = "30m"
 
@@ -86,10 +86,10 @@ fade = "30m"
 brightness = 100
 after = [
   { hold = "30s" },
-  { fade = "0s", to = 50 },
+  { fade = "1s", to = 50 },
   { fade = "5m", to = "min" },
   { hold = "5m" },
-  { fade = "0s", to = 0 },
+  { fade = "1s", to = 0 },
 ]
 
 [program.driveway]      # outdoors: full light while there's motion, then off
@@ -100,10 +100,14 @@ after = [
 ]
 
 [program.motion-late]   # 21:30-06:00
-brightness = "min"
+brightness = 35
 after = [
+  { hold = "30s" },
+  { fade = "1s", to = 25 },
   { hold = "5m" },
-  { fade = "0s", to = 0 },
+  { fade = "1s", to = "min" },
+  { hold = "5m" },
+  { fade = "1s", to = 0 },
 ]
 
 # ---------------------------------------------------------------------------
