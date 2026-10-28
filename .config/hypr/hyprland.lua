@@ -54,9 +54,12 @@ end)
 -- hl.env("XDG_SESSION_TYPE", "wayland")
 -- hl.env("GBM_BACKEND", "nvidia-drm")
 
-hl.env("LIBVA_DRIVER_NAME", "nvidia")
-hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
-hl.env("NVD_BACKEND", "direct")
+-- No global NVIDIA vars: the AMD iGPU drives the display, and forcing apps onto
+-- the dGPU (e.g. Chrome's GPU acceleration) causes cross-GPU copies and stutter.
+-- Use `prime-run <cmd>` for games/CUDA.
+-- hl.env("LIBVA_DRIVER_NAME", "nvidia")
+-- hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+-- hl.env("NVD_BACKEND", "direct")
 hl.env("WLR_NO_HARDWARE_CURSORS", "1") -- show cursor on both screens when mirroring
 hl.env("XCURSOR_SIZE", "24")
 hl.env("QT_QPA_PLATFORMTHEME", "qt5ct") -- change to qt6ct if you have that
