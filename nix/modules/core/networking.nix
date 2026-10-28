@@ -1,29 +1,17 @@
-{ config, pkgs, ... }:
+{ ... }:
 {
-  networking.networkmanager.enable = true;
-
-  networking.networkmanager.ensureProfiles = {
-    environmentFiles = [ config.sops.templates."wifi-env".path ];
-    profiles."wifi" = {
-      connection = { id = "wifi"; type = "wifi"; autoconnect-priority = "10"; };
-      wifi = { mode = "infrastructure"; ssid = "wpa_supplicant"; };
-      wifi-security = { auth-alg = "open"; key-mgmt = "wpa-psk"; psk = "$WIFI_PSK"; };
-      ipv4.method = "auto";
-      ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
-    };
-    profiles."wifi-new" = {
-      connection = { id = "wifi-new"; type = "wifi"; autoconnect-priority = "1"; };
-      wifi = { mode = "infrastructure"; ssid = "Apt 50, Sadovaya 302-bis"; };
-      wifi-security = { auth-alg = "open"; key-mgmt = "wpa-psk"; psk = "$WIFI_PSK"; };
-      ipv4.method = "auto";
-      ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
-    };
-    profiles."wifi-2.4" = {
-      connection = { id = "wifi-2.4"; type = "wifi"; autoconnect-priority = "5"; };
-      wifi = { mode = "infrastructure"; ssid = "wpa_supplicant_2.4"; };
-      wifi-security = { auth-alg = "open"; key-mgmt = "wpa-psk"; psk = "$WIFI_PSK"; };
-      ipv4.method = "auto";
-      ipv6 = { method = "auto"; addr-gen-mode = "stable-privacy"; };
-    };
+  # Wired only: enp8s0 is cabled straight to the OpenWrt router, which holds a
+  # DHCP reservation for this MAC → 192.168.1.70 (endlessh binds to that address).
+  networking.useNetworkd = true;
+  networking.useDHCP = false; # overrides the mkDefault in hardware-configuration.nix
+  networking.interfaces.enp8s0 = {
+    useDHCP = true;
+    wakeOnLan.enable = true;
   };
+
+  # networkd only manages links; resolved turns the DHCP-provided DNS into resolv.conf.
+  services.resolved.enable = true;
+
+  # Keep the Wi-Fi radio (MediaTek MT7921) fully off — no driver, no wlp7s0.
+  boot.blacklistedKernelModules = [ "mt7921e" ];
 }

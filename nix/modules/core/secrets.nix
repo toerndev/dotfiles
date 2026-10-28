@@ -11,8 +11,6 @@
 
   sops.secrets.ddclient_password = {};
 
-  sops.secrets.wifi_psk = {};
-
   sops.secrets.nextcloud_admin_password = {
     owner = "nextcloud";
   };
@@ -40,9 +38,6 @@
     content = "CF_API_TOKEN=${config.sops.placeholder.cloudflare_api_token}";
     owner = "caddy";
   };
-
-  # Rendered env file for NetworkManager ensureProfiles variable substitution.
-  sops.templates."wifi-env".content = "WIFI_PSK=${config.sops.placeholder.wifi_psk}";
 
   sops.secrets.borg_passphrase = {};
 
