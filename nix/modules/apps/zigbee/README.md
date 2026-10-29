@@ -233,7 +233,7 @@ Those settings live in the driver; a replacement driver needs them too.
 | bedroom-ceiling | `0x187a3efffe35e73a` |
 | stairs-bottom | `0x70ac08fffe43ac14` |
 
-**Hue colour bulb:** `driveway-halloween` (`0x001788010ff7215f`), Philips
+**Hue colour bulb:** `driveway` (`0x001788010ff7215f`), Philips
 8720169392182, Hue Essential White and Color Ambiance A60. It has full colour
 (`color_hs`/`color_xy`) plus 153–447 mireds. It accepts colour while off, and
 comes on in that colour. A fade from off starts at a visible glow (its level

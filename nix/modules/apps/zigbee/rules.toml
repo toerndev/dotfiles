@@ -149,17 +149,11 @@ after = [
 # power back): lit to the phase look, then `after` as if an input let go.
 # ---------------------------------------------------------------------------
 
-[lamp.driveway]         # Hue White A60 E27: dimmable, no colour temperature
+[lamp.driveway]         # Hue colour A60 (Essential White and Color Ambiance)
 sensors = ["driveway-pir"]
-program = "driveway"
+program = "halloween"   # until after Halloween; then "driveway" again
 night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
 late.brightness = 100   # hour (the phase is the program's ceiling)
-
-[lamp.driveway-halloween]   # Hue colour A60, on test until it replaces driveway
-sensors = ["driveway-pir"]
-program = "halloween"
-night.brightness = 100
-late.brightness = 100
 
 [lamp.bedroom-ceiling]
 min_brightness = 30     # no sensor, stays on: never dimmer than 30%
