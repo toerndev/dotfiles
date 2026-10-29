@@ -2,7 +2,7 @@
 
   python3 -m unittest -v        # from this directory; needs no broker
 """
-import os, tomllib, unittest
+import os, random, tomllib, unittest
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -591,6 +591,100 @@ class TestPrograms(unittest.TestCase):
         self.assertEqual(self.e.seconds_to_next(cap=600), 15)      # check it arrived
         self.ev("state", "hall", {"brightness": 254, "color_temp": 160})
         self.assertEqual(self.e.seconds_to_next(cap=600), 180)
+
+
+EMBER = """
+[program.spooky]
+brightness = 50
+hue = 8
+fade_in = "6s"
+effect = "ember"
+after = [{ hold = "5m" }, { fade = "6s", to = 0 }]
+[lamp.spooky]
+sensors = ["ghost"]
+program = "spooky"
+"""
+
+
+class TestEffects(unittest.TestCase):
+    """A colour program with the ember effect."""
+
+    def setUp(self):
+        self.t = at(12)
+        self.z = FakeZ2M(["bedroom", "stairs", "porch", "spooky"], sensors=("ghost", "ghost"))
+        self.z.devices["spooky"] = replace(self.z.devices["spooky"], color=True)
+        self.e = Engine(rules(EMBER), self.z, now=lambda: self.t, rng=random.Random(1))
+
+    ev, advance, jump = TestEngine.ev, TestEngine.advance, TestEngine.jump
+
+    def run_for(self, secs):
+        """Tick as the event loop would, at each wake-up the engine asks for."""
+        end = self.t + timedelta(seconds=secs)
+        while self.t < end:
+            self.advance(seconds=max(0.1, min(self.e.seconds_to_next(cap=2),
+                                              (end - self.t).total_seconds())))
+        return [p for n, p in self.z.take() if n == "spooky"]
+
+    def test_parse(self):
+        p = rules(EMBER).programs["spooky"]
+        self.assertEqual((p.hue, p.fade_in, p.effect), (8, 6, "ember"))
+        for old, bad, needle in [("hue = 8", "hue = 400", "0-360"),
+                                 ('effect = "ember"', "effect = 'disco'", "one of"),
+                                 ('fade_in = "6s"', "fade_in = 'soon'", "duration")]:
+            with self.subTest(bad), self.assertRaisesRegex(RulesError, needle):
+                rules(EMBER.replace(old, bad))
+        with self.assertRaisesRegex(RulesError, "needs to be a percentage"):
+            rules(EMBER.replace("brightness = 50\n", ""))
+
+    def test_fades_in_in_colour_then_pulses_then_fades_out(self):
+        self.ev("state", "ghost", {"occupancy": True})
+        self.assertEqual(self.z.take(), [("spooky", {
+            "brightness": 127, "color": {"hue": 8, "saturation": 100}, "transition": 6})])
+        self.assertEqual(self.run_for(5.9), [])            # the fade-in is left alone
+        swings = self.run_for(30)
+        self.assertGreater(len(swings), 8)
+        levels = [p["brightness"] for p in swings]
+        self.assertTrue(all(51 <= p["brightness"] <= 254 for p in swings if "color" in p))
+        self.assertTrue(any(b >= 190 for b in levels) and any(b <= 153 for b in levels))
+        self.assertTrue(all(p["color"]["hue"] <= 24 for p in swings if "color" in p))
+        self.ev("state", "ghost", {"occupancy": False})
+        swings = self.run_for(299)                         # the 5m hold pulses on
+        self.assertGreater(len(swings), 80)
+        sinks = [p for p in swings if p["brightness"] <= 64]
+        self.assertTrue(sinks and all(p["color"]["hue"] <= 3 and p["transition"] >= 3
+                                      for p in sinks))
+        self.assertNotIn({"state": "OFF", "transition": 6}, swings)
+        tail = self.run_for(2)
+        self.assertEqual(tail[-1], {"state": "OFF", "transition": 6})
+        self.assertEqual(self.run_for(10), [])             # nothing after the fade-out
+        self.ev("state", "spooky", {"state": "OFF"})
+        self.assertNotIn("spooky", self.e.runs)
+
+    def test_motion_during_fade_out_creeps_back(self):
+        self.ev("state", "ghost", {"occupancy": True})
+        self.ev("state", "ghost", {"occupancy": False})
+        self.run_for(302)                                  # 2s into the fade-out
+        self.ev("state", "ghost", {"occupancy": True})
+        self.assertEqual(self.z.take()[-1][1]["transition"], 6)
+        self.assertTrue(self.run_for(10))                  # pulsing again
+
+    def test_phase_fades_and_reconcile_leave_it_alone(self):
+        self.jump(at(16, 29))
+        self.ev("state", "ghost", {"occupancy": True})
+        self.run_for(59)
+        self.assertNotIn("color_temp", str(self.run_for(2)))     # 16:30 evening fade
+        self.e.reconcile("test")
+        self.ev("state", "spooky", {"state": "ON", "brightness": 1})
+        self.assertTrue(all("brightness" in p and p["transition"] < 4
+                            for p in self.run_for(5)))     # swings only, no reconcile fix
+
+    def test_lamp_without_colour_gets_no_hue(self):
+        self.z.devices["spooky"] = replace(self.z.devices["spooky"], color=False)
+        with self.assertLogs("engine", "WARNING") as logs:
+            self.e.check_names()
+        self.assertTrue(any("no colour" in line for line in logs.output))
+        self.ev("state", "ghost", {"occupancy": True})
+        self.assertNotIn("color", self.z.take()[0][1])
 
 
 if __name__ == "__main__":

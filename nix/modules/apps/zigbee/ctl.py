@@ -307,6 +307,12 @@ def cmd_check(a):
 
 def describe(prog):
     b = "phase" if prog.brightness == PHASE else f"{prog.brightness:g}%"
+    if prog.hue is not None:
+        b += f" hue {prog.hue:g}"
+    if prog.fade_in is not None:
+        b = f"in {prog.fade_in:g}s to {b}"
+    if prog.effect:
+        b += f" ({prog.effect} while held and in holds)"
     steps = [f"fade {s.secs:g}s to {s.to:g}%" if s.to is not None else f"hold {s.secs:g}s"
              for s in prog.after]
     return " -> ".join([b, *steps])

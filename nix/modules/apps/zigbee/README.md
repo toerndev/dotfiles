@@ -50,7 +50,7 @@ WireGuard.
 ## Add a light
 
 1. **Pair:** `lampctl pair`, then power the light on. It opens joining for
-   3 minutes, prints what joins and the interview result, and closes joining
+   3 minutes (z2m allows at most 254s for `--time`), prints what joins and the interview result, and closes joining
    once the new device is in. New lights join by themselves. A light that was
    paired anywhere before needs a factory reset first (see the model's page,
    `https://www.zigbee2mqtt.io/devices/<model>.html`; usually 5–6 quick
@@ -154,6 +154,18 @@ rules need no change. Remove the old entry in the frontend.
   Inputs and lamps are n:m: one sensor can drive several lamps with
   different programs. A rules edit applies at once: a running `after` is
   redone as if the new steps had been in force since the input let go.
+- **Colour and effects** (`hue`, `fade_in`, `effect` on a program): a
+  colour program lights in that hue at full saturation instead of the
+  phase's kelvin, and phase fades leave its colour alone. `fade_in`
+  replaces `power_on_fade` when an input lights it. `effect = "ember"`
+  runs while held and during `hold` steps (not fades): short fades sent
+  every 1–3s, unverified because the next swing supersedes a lost one.
+  Peaks reach up to 2× `brightness`, red and orange take turns, and now
+  and then it flickers or sinks slowly to a deep red at 0.4–0.5×. The
+  10-minute reconcile leaves a pulsing lamp alone. The values were tuned
+  by eye on a Hue colour A60 around 50% (`[program.halloween]`). A lamp
+  switched on, rather than lit by an input, still comes up over
+  `power_on_fade`.
 - **Dark only** (`[sensor.<name>] max_lux`): motion on that sensor only
   lights a lamp that is off while the sensor's last `illuminance` is at or
   below `max_lux`. A lamp already on (its program running, or switched on)
@@ -220,6 +232,14 @@ Those settings live in the driver; a replacement driver needs them too.
 |---|---|
 | bedroom-ceiling | `0x187a3efffe35e73a` |
 | stairs-bottom | `0x70ac08fffe43ac14` |
+
+**Hue colour bulb:** `driveway-halloween` (`0x001788010ff7215f`), Philips
+8720169392182, Hue Essential White and Color Ambiance A60. It has full colour
+(`color_hs`/`color_xy`) plus 153–447 mireds. It accepts colour while off, and
+comes on in that colour. A fade from off starts at a visible glow (its level
+1), not from black. The built-in `breathe` effect is the identify blink, and
+`candle` drops the colour for ~2240K white, so `effect = "ember"` does this
+itself. Hue firmware updates go over z2m OTA and take hours; keep it powered.
 
 ## Lamp facts
 

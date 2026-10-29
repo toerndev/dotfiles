@@ -17,6 +17,7 @@ LAMP_KEYS = {"min_brightness", "max_brightness", "min_kelvin", "max_kelvin",
 PHASE_OVERRIDES = {"brightness", "kelvin", "program"}
 PHASE = "phase"            # a program brightness that means "the lamp's phase look"
 MIN = "min"                # a brightness that means "the lamp's min_brightness"
+EFFECTS = {"ember"}        # see engine.Engine._ember
 
 
 class RulesError(ValueError):
@@ -119,6 +120,9 @@ class Program:
     name: str
     brightness: float | str = PHASE    # while held on; PHASE = the phase look
     after: tuple = ()                  # Steps, in order; the last level stays
+    hue: float | None = None           # colour (0-360, full saturation) instead of the phase's kelvin
+    fade_in: float | None = None       # lighting up; None = [defaults] power_on_fade
+    effect: str | None = None          # while held and during holds; EFFECTS
 
 
 @dataclass(frozen=True, eq=False)
@@ -231,8 +235,23 @@ def _step(i, t, where):
 
 def _program(name, t):
     where = f"[program.{name}]"
-    _keys(t, {"brightness", "after"}, where)
+    _keys(t, {"brightness", "after", "hue", "fade_in", "effect"}, where)
     b = _brightness(t.get("brightness", PHASE), f"{where} brightness", (PHASE, MIN))
+    hue = t.get("hue")
+    if hue is not None and (isinstance(hue, bool) or not isinstance(hue, (int, float))
+                            or not 0 <= hue <= 360):
+        raise RulesError(f"{where} hue: expected degrees 0-360 (0 red, 30 orange, "
+                         f"120 green), got {hue!r}")
+    fade_in = t.get("fade_in")
+    if fade_in is not None:
+        fade_in = _duration(fade_in, f"{where} fade_in", MAX_FADE_S)
+    effect = t.get("effect")
+    if effect is not None and effect not in EFFECTS:
+        raise RulesError(f"{where} effect: expected one of {', '.join(sorted(EFFECTS))}, "
+                         f"got {effect!r}")
+    if effect and b == PHASE:
+        raise RulesError(f"{where}: effect {effect!r} pulses around `brightness`, "
+                         f"which needs to be a percentage or \"min\"")
     after = t.get("after", [])
     if not isinstance(after, list):
         raise RulesError(f"{where} after: expected a list of steps")
@@ -240,7 +259,7 @@ def _program(name, t):
     if any(s.to == 0 for s in steps[:-1]):
         raise RulesError(f"{where} after: a fade to 0 switches the lamp off, "
                          f"which ends the program; it can only be the last step")
-    return Program(name, b, steps)
+    return Program(name, b, steps, hue, fade_in, effect)
 
 
 def _resolved(prog, floor, where):

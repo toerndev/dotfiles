@@ -71,6 +71,15 @@ fade = "30m"
 #                             { hold = "3m" }             stay where it is
 #                             { fade = "2m", to = 10 }    percent or "min"; 0 = off
 #                           The last level stays until the next input.
+#   hue = 8                 optional colour, 0-360 at full saturation (0 red,
+#                           30 orange), instead of the phase's kelvin. Phase
+#                           fades leave it alone. Lamps without colour ignore it.
+#   fade_in = "6s"          how long lighting up takes; default power_on_fade
+#   effect = "ember"        optional, while held and during holds (not fades):
+#                           a glowing ember around `brightness` (a percentage),
+#                           peaking up to 2x it, red and orange taking turns,
+#                           uneven timing, now and then a flicker or a slow
+#                           sink to a deep, dark red (down to 0.4x it).
 #
 # The phase is the ceiling: a program level above the lamp's phase look shows
 # the phase look instead, and follows the phase's fades (night holds 50% even
@@ -97,6 +106,16 @@ brightness = 100
 after = [
   { hold = "1m" },
   { fade = "30s", to = 0 },
+]
+
+[program.halloween]     # creeps in red, embers for 5m after the last motion, creeps out
+brightness = 50
+hue = 8
+fade_in = "6s"
+effect = "ember"
+after = [
+  { hold = "5m" },
+  { fade = "6s", to = 0 },
 ]
 
 [program.motion-late]   # 21:30-06:00
@@ -135,6 +154,12 @@ sensors = ["driveway-pir"]
 program = "driveway"
 night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
 late.brightness = 100   # hour (the phase is the program's ceiling)
+
+[lamp.driveway-halloween]   # Hue colour A60, on test until it replaces driveway
+sensors = ["driveway-pir"]
+program = "halloween"
+night.brightness = 100
+late.brightness = 100
 
 [lamp.bedroom-ceiling]
 min_brightness = 30     # no sensor, stays on: never dimmer than 30%

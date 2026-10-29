@@ -25,6 +25,7 @@ class Device:
     brightness: bool
     occupancy: bool
     illuminance: bool = False
+    color: bool = False        # takes hue/saturation
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,7 @@ def _device(d):
         interviewed=d.get("interview_state", "SUCCESSFUL") == "SUCCESSFUL",
         color_temp=(ct["value_min"], ct["value_max"]) if ct and "value_min" in ct else None,
         brightness="brightness" in feats, occupancy="occupancy" in feats,
-        illuminance="illuminance" in feats)
+        illuminance="illuminance" in feats, color="color_hs" in feats)
 
 
 class Z2M:

@@ -35,9 +35,15 @@ nothing when it did not (weak link, or mains cut). A command not confirmed
 within VERIFY is resent, only the fields still missing and with what is left
 of its fade, up to RETRIES times. Every RECONCILE_EVERY the lamps are also
 read live, which catches anything the retries could not.
+
+Colour programs (`hue`) light in that colour instead of the phase's kelvin,
+and phase fades leave their colour alone. An `effect` runs while the lamp is
+held and during hold steps: a stream of short fades, sent without
+verification (the next swing a second or two later supersedes a lost one),
+and reconcile leaves a pulsing lamp alone.
 """
-import logging
-from dataclasses import dataclass
+import logging, random
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from rules import PHASE, Look, level, mireds
@@ -64,6 +70,13 @@ def _fields(fields):
     return ", ".join(f"{k} {v[0]}" for k, v in fields.items())
 
 
+def _same(have, want):
+    """z2m reports more of a colour than we send (hue/saturation plus x/y)."""
+    if isinstance(want, dict):
+        return isinstance(have, dict) and all(have.get(k) == v for k, v in want.items())
+    return have == want
+
+
 @dataclass
 class Run:
     """Where a programmed lamp is in its program."""
@@ -73,6 +86,9 @@ class Run:
     until: datetime | None = None   # end of the current step
     fading: bool = False        # the current step is a fade
     since: datetime | None = None   # when the input let go
+    pulse_at: datetime | None = None    # next effect swing; None = not pulsing yet
+    swings: list = field(default_factory=list)  # rest of the effect's current cycle
+    red: bool = True            # ember: which colour the last peak was
 
 
 @dataclass
@@ -84,8 +100,9 @@ class Sent:
 
 
 class Engine:
-    def __init__(self, rules, z2m, now=datetime.now):
+    def __init__(self, rules, z2m, now=datetime.now, rng=None):
         self.rules, self.z2m, self.now = rules, z2m, now
+        self.rng = rng or random.Random()
         self.last_power_on = {}    # lamp -> when, for DEBOUNCE
         self.probing = {}          # lamp -> deadline for its /get answer
         self.occupied = {}         # sensor -> bool
@@ -142,6 +159,11 @@ class Engine:
                         and not dev.illuminance:
                     problems.append(f"sensor {s!r} has max_lux but no illuminance; "
                                     f"its motion always lights")
+            dev = self.z2m.devices.get(name)
+            progs = [lamp.program] + [o["program"] for o in lamp.per_phase.values()
+                                      if "program" in o]
+            if dev and not dev.color and any(p and p.hue is not None for p in progs):
+                problems.append(f"lamp {name!r} has no colour; its program's hue is ignored")
         if problems != self._warned:
             for p in problems:
                 log.warning("%s", p)
@@ -151,13 +173,16 @@ class Engine:
         return new
 
     # -- commands --------------------------------------------------------
-    def _payload(self, name, look, transition, brightness=True, color=True):
+    def _payload(self, name, look, transition, brightness=True, color=True, hue=None):
         p = {}
         if brightness:
             lvl = level(look.brightness)
             p.update({"brightness": lvl} if lvl else {"state": "OFF"})
         dev = self.z2m.devices.get(name)
-        if color and (dev is None or dev.color_temp):
+        if color and hue is not None:
+            if dev is None or dev.color:
+                p["color"] = {"hue": hue, "saturation": 100}
+        elif color and (dev is None or dev.color_temp):
             lamp = self.rules.lamps[name]
             lo, hi = mireds(lamp.max_kelvin), mireds(lamp.min_kelvin)
             if dev:
@@ -189,7 +214,7 @@ class Engine:
                 and "brightness" in sent.fields):
             del sent.fields["brightness"]    # switched off meanwhile: don't relight
         for k, (v, _) in list(sent.fields.items()):
-            if ev.data.get(k) == v:
+            if _same(ev.data.get(k), v):
                 del sent.fields[k]
         if not sent.fields:
             del self.unconfirmed[ev.name]
@@ -199,7 +224,7 @@ class Engine:
         command and check, so z2m's cache matching counts as confirmed too."""
         sent = self.unconfirmed.pop(name)
         cache = self.z2m.state.get(name, {})
-        missing = {k: v for k, v in sent.fields.items() if cache.get(k) != v[0]}
+        missing = {k: v for k, v in sent.fields.items() if not _same(cache.get(k), v[0])}
         if not missing or name not in self.rules.lamps:
             return
         if sent.tries >= RETRIES or self.z2m.online.get(name) is False:
@@ -232,17 +257,23 @@ class Engine:
         """The phase look, or the phase's colour at a program's brightness.
         Nothing is sent if `unless` (a live read) already shows it."""
         phase = self.rules.phase_at(self.now())
-        look = self.rules.lamps[name].look(phase)
+        lamp = self.rules.lamps[name]
+        look = lamp.look(phase)
         if brightness != PHASE:
             look = Look(brightness, look.kelvin)
-        payload = self._payload(name, look, transition)
-        if unless is not None and all(unless.get(k) == v for k, v in payload.items()
+        hue = self._hue(name)
+        payload = self._payload(name, look, transition, hue=hue)
+        if unless is not None and all(_same(unless.get(k), v) for k, v in payload.items()
                                       if k != "transition"):
             log.debug("%s: %s, already %s", name, why, phase.name)
             return
-        log.info("%s: %s -> %s (%g%%, %dK)", name, why, phase.name,
-                 look.brightness, look.kelvin)
+        log.info("%s: %s -> %s (%g%%, %s)", name, why, phase.name, look.brightness,
+                 f"{look.kelvin}K" if hue is None else f"hue {hue:g}")
         self._send(name, payload)
+
+    def _hue(self, name):
+        lamp = self.rules.lamps[name]
+        return lamp.program and lamp.program_at(self.rules.phase_at(self.now())).hue
 
     def _occupied(self, lamp):
         return any(self.occupied.get(s) for s in lamp.sensors)
@@ -270,11 +301,15 @@ class Engine:
         if run and run.held:
             return
         b = self._capped(name, prog.brightness)
+        now = self.now()
         if run and run.level == b and not run.fading:
             log.info("%s: %s, staying at %s", name, why, _pct(run.level))
+            self.runs[name] = Run(b, pulse_at=run.pulse_at, swings=run.swings, red=run.red)
         else:
-            self.light(name, self.rules.power_on_fade, f"{why} [{prog.name}]", b)
-        self.runs[name] = Run(b)
+            fade = self.rules.power_on_fade if prog.fade_in is None else prog.fade_in
+            self.light(name, fade, f"{why} [{prog.name}]", b)
+            self.runs[name] = Run(b, pulse_at=now + timedelta(seconds=fade)
+                                  if prog.effect else None)
 
     def let_go(self, name, why):
         """Every input has let go: run the program's after-steps."""
@@ -320,9 +355,54 @@ class Engine:
             self.runs.pop(name, None)
             self.hold(name, why)
             return
-        self.runs[name] = Run(PHASE)
+        self.runs[name] = Run(PHASE, pulse_at=self.now() + timedelta(seconds=transition)
+                              if self._program(name).effect else None)
         self.light(name, transition, why)
         self.let_go(name, "nothing holding it")
+
+    # -- effects ---------------------------------------------------------
+    def _pulsing(self, name, run):
+        """An effect runs while held and during hold steps, not during fades
+        or once the program rests."""
+        return (self._program(name).effect is not None and run.level != 0
+                and (run.held or (run.until is not None and not run.fading)))
+
+    def _pulse(self, name, run, now):
+        if not run.swings:
+            run.swings = self._ember(name, run)
+        pct, hue, secs, wait = run.swings.pop(0)
+        p = {"brightness": level(pct), "transition": round(secs, 1)}
+        if hue is not None and (dev := self.z2m.devices.get(name)) and dev.color:
+            p["color"] = {"hue": round(hue), "saturation": 100}
+        self.z2m.set(name, p)
+        run.pulse_at = now + timedelta(seconds=wait)
+
+    def _ember(self, name, run):
+        """One cycle of a glowing ember, around the program's brightness b:
+        up to a peak (1.5-2 b), down to a trough (0.9-1.2 b), uneven timing.
+        Peaks take turns being red and orange (now and then the same twice)
+        and each trough leans to the other colour; one cycle in five flickers
+        at its peak, and one in six sinks instead of a trough: slowly down to
+        0.4-0.5 b in the deepest red, lingering a second or two. Values were tuned by eye on a Hue colour A60, around 50%.
+        Never above the phase look (the program ceiling)."""
+        r = self.rng
+        b = self._percent(name, self._capped(name, self._program(name).brightness))
+        cap = self._percent(name, PHASE)
+        peak = min(cap, b * r.uniform(1.5, 2.0))
+        trough = min(cap, b * r.uniform(0.9, 1.2))
+        if r.random() >= 0.25:
+            run.red = not run.red
+        hpk, htr = ((r.uniform(4, 10), r.uniform(15, 22)) if run.red
+                    else (r.uniform(17, 24), r.uniform(4, 11)))
+        up, dn = r.uniform(0.8, 2.6), r.uniform(1.0, 3.2)
+        cycle = [(peak, hpk, up, up)]
+        if r.random() < 0.2:
+            cycle += [(b * r.uniform(0.7, 0.9), None, r.uniform(0.1, 0.3), 0.3),
+                      (peak, None, r.uniform(0.2, 0.5), 0.5)]
+        if r.random() < 1 / 6:              # sink: slowly down to a deep, dark red, linger
+            dn = r.uniform(3, 4)
+            return cycle + [(b * r.uniform(0.4, 0.5), r.uniform(0, 3), dn, dn + r.uniform(1, 2))]
+        return cycle + [(trough, htr, dn, dn)]
 
     # -- triggers --------------------------------------------------------
     def power_on(self, name, why, mains=True):
@@ -383,7 +463,7 @@ class Engine:
             if run and run.level not in (PHASE, 0) and run.level > new.brightness:
                 run.level = PHASE          # the phase is the ceiling: down with it
             follows = lamp.program is None or (run is not None and run.level == PHASE)
-            color = new.kelvin != old.kelvin            # safe on any lamp
+            color = new.kelvin != old.kelvin and self._hue(name) is None  # safe on any lamp
             bright = new.brightness != old.brightness and self.z2m.is_on(name) and follows
             payload = self._payload(name, new, phase.fade, brightness=bright, color=color)
             if payload:
@@ -408,7 +488,8 @@ class Engine:
             (self.quiet.add if quiet else self.quiet.discard)(name)
             dev = self.z2m.devices.get(name)
             self.z2m.get(name, ("state", "brightness")
-                         + (("color_temp",) if dev and dev.color_temp else ()))
+                         + (("color_temp",) if dev and dev.color_temp else ())
+                         + (("color",) if dev and dev.color else ()))
 
     def _reconciled(self, name, live):
         if name in self.unconfirmed:
@@ -425,6 +506,8 @@ class Engine:
             # On, and nothing of ours is running (this service restarted, or
             # our OFF never arrived).
             self._start(name, "on at reconcile", self.rules.reconcile_fade)
+        elif self._pulsing(name, run):
+            log.debug("%s: effect running, reconcile skipped", name)
         elif not run.fading:
             self.light(name, fade, "on at reconcile", run.level, unless=live)
         # mid fade: leave it
@@ -469,6 +552,13 @@ class Engine:
         for name, run in list(self.runs.items()):
             if run.until is not None and now >= run.until:
                 self._advance(name)
+        for name, run in list(self.runs.items()):
+            if not self._pulsing(name, run):
+                run.pulse_at, run.swings = None, []
+            elif run.pulse_at is None:
+                run.pulse_at = now      # a hold step after a fade: start again
+            if run.pulse_at is not None and now >= run.pulse_at:
+                self._pulse(name, run, now)
         for name, sent in list(self.unconfirmed.items()):
             if now >= sent.due:
                 self._verify(name, now)
@@ -489,7 +579,7 @@ class Engine:
             self._plan()
 
     def seconds_to_next(self, cap):
-        times = [r.until for r in self.runs.values() if r.until is not None]
+        times = [t for r in self.runs.values() for t in (r.until, r.pulse_at) if t is not None]
         times += self.probing.values()
         times += [s.due for s in self.unconfirmed.values()]
         times.append(self.next_reconcile)
