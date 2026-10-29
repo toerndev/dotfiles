@@ -156,8 +156,9 @@ night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
 late.brightness = 100   # hour (the phase is the program's ceiling)
 
 [lamp.hue-2700k]        # Hue White A60, 1100 lm, no colour temperature: a constant
-min_brightness = 5      # glow. Every phase clamps to 5%. Power-on level 5% (level
-max_brightness = 5      # 13), so a power cut brings it straight back to the glow.
+min_brightness = 0.4    # glow at its lowest (level 1; the bulb reports 2, its floor,
+max_brightness = 0.4    # and looks no dimmer at 1-5%). Power-on level the same, so
+                        # a power cut brings it straight back to the glow.
 
 [lamp.bedroom-ceiling]
 min_brightness = 30     # no sensor, stays on: never dimmer than 30%
