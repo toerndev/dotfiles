@@ -151,7 +151,7 @@ after = [
 
 [lamp.driveway]         # Hue colour A60 (Essential White and Color Ambiance)
 sensors = ["driveway-pir"]
-program = "halloween"   # until after Halloween; then "driveway" again
+program = "driveway"   # until after Halloween; then "driveway" again
 night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
 late.brightness = 100   # hour (the phase is the program's ceiling)
 

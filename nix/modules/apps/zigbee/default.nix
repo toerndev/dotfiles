@@ -52,6 +52,14 @@ in
     };
   };
 
+  # The coordinator is reached via the router (DNS + TCP), so a router reboot
+  # looks like the adapter vanishing. The defaults (100ms restarts, 5 starts per
+  # 10s) give up for good before the router is back; keep retrying instead.
+  systemd.services.zigbee2mqtt = {
+    startLimitIntervalSec = 0;
+    serviceConfig.RestartSec = 10;
+  };
+
   # The network itself: without these, every device has to be paired again.
   services.borgbackup.jobs.files = {
     paths = [
