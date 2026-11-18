@@ -60,7 +60,7 @@
   # Sandbox wstunnel loopback access: allow replies to Caddy (ESTABLISHED),
   # outbound UDP to WireGuard (port 51820), reject everything else.
   # The caddy→8181 ACCEPT must appear before the Caddy terminating REJECT in
-  # hosts/htpc/default.nix; placing it here (services tier) ensures correct ordering.
+  # hosts/server/default.nix; placing it here (services tier) ensures correct ordering.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy    -o lo -p tcp --dport 8181  -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner wstunnel -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT

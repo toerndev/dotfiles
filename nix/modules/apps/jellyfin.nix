@@ -6,7 +6,7 @@
   };
 
   # LAN for playback clients, WG for administration via Homepage.
-  networking.firewall.interfaces.enp8s0.allowedTCPPorts = [ 8096 ];
+  networking.firewall.interfaces.${config.homelab.lanInterface}.allowedTCPPorts = [ 8096 ];
   networking.firewall.interfaces.wg0.allowedTCPPorts = [ 8096 ];
 
   systemd.services.jellyfin = {

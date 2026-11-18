@@ -1,6 +1,6 @@
 # Zigbee lights
 
-zigbee2mqtt + mosquitto on htpc, and a small rules service (`zigbee-lamps`)
+zigbee2mqtt + mosquitto on the server (`hosts/server`), and a small rules service (`zigbee-lamps`)
 that decides what the lights do. This directory is self-contained: this file
 is enough to rebuild the whole setup from nothing.
 
@@ -14,7 +14,7 @@ is enough to rebuild the whole setup from nothing.
 
 | file | role |
 |---|---|
-| `default.nix` | mosquitto, zigbee2mqtt, the `zigbee-lamps` service, `lampctl`, backups, frontend proxy |
+| `default.nix` | mosquitto, zigbee2mqtt, the `zigbee-lamps` service, `lampctl`, frontend proxy (backups: `modules/server/backup.nix`) |
 | `rules.toml` | **what the lights do**: phases of the day, per-lamp settings, sensors |
 | `engine.py` | behaviour: power-on, phase fades, motion, reconcile |
 | `rules.py` | parses and strictly validates `rules.toml` |
@@ -30,7 +30,7 @@ is enough to rebuild the whole setup from nothing.
 | `rules.toml` | on save, within ~2s. An invalid edit is logged and the previous rules keep running. |
 | `*.py` | `sudo systemctl restart zigbee-lamps` (the service runs this checkout, as `losipai`) |
 | device names, per-device z2m options | immediately: `lampctl rename`, the frontend. Stored in z2m's `devices.yaml`. |
-| `default.nix` | `sudo nixos-rebuild switch --flake ~/github/dotfiles/nix#htpc` |
+| `default.nix` | `sudo nixos-rebuild switch --flake ~/github/dotfiles/nix#server` |
 
 ## Everyday
 
@@ -201,7 +201,7 @@ rules need no change. Remove the old entry in the frontend.
 **Coordinator: SMLIGHT SLZB-06U**
 - **Radio:** TI CC2652P running Z-Stack 3.x (`ZStack3x0` 2.7.1, rev
   20221226). The z2m adapter is `zstack`, not `ezsp`/`ember`.
-- **Link to htpc:** network mode. The radio is reached over **TCP 6638**
+- **Link to the server:** network mode. The radio is reached over **TCP 6638**
   (`SLZB-06U.lan`, DHCP 192.168.1.219: keep a reservation for it). Web UI on
   port 80.
 - **USB does two things only: power, and the ESP32's debug console**
@@ -209,7 +209,7 @@ rules need no change. Remove the old entry in the frontend.
   with DTR/RTS reboots the ESP32. A loose USB cable takes the coordinator
   down completely.
 - **Without ethernet** it opens a fallback WiFi AP (`SLZB-06U_xxxxxx`). Don't
-  join it from htpc: that drops htpc's own WiFi, and with it SSH.
+  join it from the server: that drops the server's network, and with it SSH.
 - **Only z2m may talk to port 6638.** The SLZB accepts several TCP clients but
   has a single frame stream, so a second client silently corrupts z2m's. A
   plain connect-and-close (as `lampctl doctor` does) is harmless.
@@ -255,7 +255,7 @@ These were measured on the lamps above, and the design depends on them.
   from its own power-on defaults, then announces itself ~5s later. That
   announce is when the rules can act.
 - **Power-on defaults are the night-safety floor.** They live in the lamp,
-  so they work with htpc down. Set by `lampctl startup --safe-floor`:
+  so they work with the server down. Set by `lampctl startup --safe-floor`:
 
   | attribute | value | why |
   |---|---|---|
@@ -317,7 +317,9 @@ everything again.
   - `devices.yaml`: names and per-device options.
 
 These three files are in the nightly borg `files` job (04:00, keeps 7
-dailies), declared in `default.nix`.
+dailies), declared in `modules/server/backup.nix`. **Not imported on the
+server until Phase 5 of `context/nix-migration.md`**, so until then there is
+no backup: copy them by hand after pairing or renaming anything.
 
 ## Setting up from scratch and recovery
 
@@ -337,14 +339,14 @@ Check every step with `lampctl doctor`; it names the failing layer.
    the router's DNS doesn't provide the name, put the reserved IP there
    instead.
 
-### htpc reinstalled; coordinator and lamps untouched
+### Server reinstalled; coordinator and lamps untouched
 
 The coordinator still holds the network, so only z2m's files are needed:
 ```bash
-sudo nixos-rebuild switch --flake ~/github/dotfiles/nix#htpc
+sudo nixos-rebuild switch --flake ~/github/dotfiles/nix#server
 sudo systemctl stop zigbee2mqtt
-sudo borg-job-files list                                  # pick the newest htpc-files-*
-cd / && sudo borg-job-files extract ::htpc-files-<date> \
+sudo borg-job-files list                                  # pick the newest server-files-*
+cd / && sudo borg-job-files extract ::server-files-<date> \
   var/lib/zigbee2mqtt/coordinator_backup.json var/lib/zigbee2mqtt/database.db \
   var/lib/zigbee2mqtt/devices.yaml
 sudo chown zigbee2mqtt: /var/lib/zigbee2mqtt/* && sudo systemctl start zigbee2mqtt
@@ -352,6 +354,8 @@ lampctl doctor                    # z2m log should say "zigbee-herdsman started 
 ```
 Restore the files **before** z2m first reaches the coordinator. Otherwise z2m
 may form a fresh network, and every device has to be paired again.
+The unit enforces this: it doesn't start until `coordinator_backup.json`
+exists (`systemctl status zigbee2mqtt` says *start condition unmet*).
 
 ### Coordinator reset or replaced; lamps untouched
 
@@ -372,7 +376,9 @@ install. If it forms a new network instead, pair every device again as below.
 2. Before pairing anything, decide the network parameters (see
    [The network](#the-network)). This is the one moment when changing them is
    free.
-3. Deploy: `sudo nixos-rebuild switch …`. z2m forms the network.
+3. `sudo touch /var/lib/zigbee2mqtt/form-new-network` (z2m won't start with an
+   empty data dir otherwise), deploy: `sudo nixos-rebuild switch …`. z2m forms
+   the network. Then remove the marker.
 4. For each light: [Add a light](#add-a-light). For each sensor:
    [Add a motion sensor](#add-a-motion-sensor).
 5. `lampctl doctor`. The next nightly borg run backs up the new network.

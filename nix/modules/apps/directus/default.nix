@@ -112,12 +112,12 @@
   # python3Packages.setuptools provides distutils for node-gyp native build fallback.
   # On NixOS 25.11 with nix-ld enabled, prebuild-install downloads pre-built binaries
   # for Node.js 22 LTS (argon2, isolated-vm, sharp, sqlite3) which run via nix-ld.
-  # Source compilation is only a fallback; gcc and gnumake already in core/locale.nix.
+  # Source compilation is only a fallback; gcc and gnumake already in common/packages.nix.
   environment.systemPackages = [ pkgs.python3Packages.setuptools ];
 
   # Loopback sandbox: caddy → directus (8055), directus replies only.
   # Directus has no legitimate outbound connections at runtime (SQLite + local storage).
-  # Terminating caddy REJECT lives in hosts/htpc/default.nix (always last).
+  # Terminating caddy REJECT lives in hosts/server/default.nix (always last).
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8055 -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner directus -o lo -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT

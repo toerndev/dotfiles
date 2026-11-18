@@ -39,6 +39,10 @@
           "/var/lib/jellyfin"
           "/media"
           "/etc/ssh/ssh_host_ed25519_key"
+          # The zigbee network: without these, every device has to be paired again.
+          "/var/lib/zigbee2mqtt/coordinator_backup.json"
+          "/var/lib/zigbee2mqtt/database.db"
+          "/var/lib/zigbee2mqtt/devices.yaml"
         ];
         exclude = [
           # Jellyfin: downloaded metadata + cache are regeneratable

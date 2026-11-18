@@ -13,5 +13,5 @@
 
   programs.nix-ld.enable = true;
 
-  system.stateVersion = "24.11";
+  # system.stateVersion is per install: set in hosts/<name>.
 }

@@ -10,7 +10,6 @@ let
   lampctl = pkgs.writeShellScriptBin "lampctl" ''
     exec ${lampsPython}/bin/python3 ${lampsDir}/ctl.py "$@"
   '';
-  z2mData = config.services.zigbee2mqtt.dataDir;
 in
 {
   services.mosquitto = {
@@ -58,16 +57,18 @@ in
   systemd.services.zigbee2mqtt = {
     startLimitIntervalSec = 0;
     serviceConfig.RestartSec = 10;
-  };
-
-  # The network itself: without these, every device has to be paired again.
-  services.borgbackup.jobs.files = {
-    paths = [
-      "${z2mData}/coordinator_backup.json"
-      "${z2mData}/database.db"
-      "${z2mData}/devices.yaml"
+    # Never start with an empty data dir: z2m may form a fresh network, and
+    # every device has to be paired again. Restore the files first (README:
+    # "Setting up from scratch and recovery"). To form a new network on
+    # purpose: sudo touch /var/lib/zigbee2mqtt/form-new-network
+    unitConfig.ConditionPathExists = [
+      "|${config.services.zigbee2mqtt.dataDir}/coordinator_backup.json"
+      "|${config.services.zigbee2mqtt.dataDir}/form-new-network"
     ];
   };
+
+  # The network itself (coordinator_backup.json, database.db, devices.yaml) is
+  # backed up by modules/server/backup.nix, so this module works without Borg.
 
   systemd.services.zigbee-lamps = {
     description = "Rules for Zigbee lamps (zigbee/rules.toml)";

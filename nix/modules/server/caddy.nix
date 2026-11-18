@@ -5,7 +5,7 @@
 
     # caddy-dns/cloudflare plugin for DNS-01 ACME challenge.
     # To get the correct vendorHash: set hash = lib.fakeHash, run
-    #   nix build .#nixosConfigurations.htpc.config.services.caddy.package
+    #   nix build .#nixosConfigurations.server.config.services.caddy.package
     # then replace lib.fakeHash with the hash nix reports.
     package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/cloudflare@v0.0.0-20251204174556-6dc1fbb7e925" ];
@@ -57,7 +57,7 @@
   networking.firewall.interfaces.wg0.allowedTCPPorts = [ 80 ];
 
   # Sandbox caddy loopback access: only allow backends it proxies to.
-  # The terminating REJECT for caddy loopback is defined in hosts/htpc/default.nix
+  # The terminating REJECT for caddy loopback is defined in hosts/server/default.nix
   # so it is always appended after all service-module ACCEPT rules regardless of
   # import order (types.lines merges in evaluation order: core → services → host).
   networking.firewall.extraCommands = ''
