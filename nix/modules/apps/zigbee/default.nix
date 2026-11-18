@@ -67,8 +67,8 @@ in
     ];
   };
 
-  # The network itself (coordinator_backup.json, database.db, devices.yaml) is
-  # backed up by modules/server/backup.nix, so this module works without Borg.
+  # Backups of the network files are declared in modules/server/backup.nix,
+  # so this module works without Borg.
 
   systemd.services.zigbee-lamps = {
     description = "Rules for Zigbee lamps (zigbee/rules.toml)";

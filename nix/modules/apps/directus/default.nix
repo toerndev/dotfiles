@@ -89,9 +89,8 @@
     };
   };
 
-  # Public HTTPS vhost; DNS-01 via the existing Cloudflare token already in Caddy.
-  # Pre-requisite: create the cms A record in Cloudflare manually before deploying
-  # (ddclient only updates existing records, it cannot create them).
+  # Public HTTPS vhost, DNS-01 via Caddy's Cloudflare token. The A record must
+  # exist in Cloudflare: ddclient only updates records.
   services.caddy.virtualHosts."directus.datasvard.com" = {
     extraConfig = ''
       reverse_proxy localhost:8055

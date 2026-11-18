@@ -11,7 +11,7 @@
 
   sops.secrets.ddclient_password = {};
 
-  # Directus JWT signing key — add to secrets/secrets.yaml before deploying.
+  # Directus JWT signing key.
   sops.secrets.directus_secret = {};
 
   # Directus bootstrap admin password.

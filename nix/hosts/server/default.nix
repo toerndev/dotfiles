@@ -15,10 +15,8 @@
     ../../modules/server/ddclient.nix
     ../../modules/server/wireguard.nix
     ../../modules/server/wstunnel.nix
-    # ../../modules/server/backup.nix
-    #   Not yet: it mounts the /backup disk, which stays in the htpc. Phase 5 of
-    #   context/nix-migration.md points the repo at the htpc over SSH and brings
-    #   it back. Until then nothing here is backed up, zigbee's data included.
+    # ../../modules/server/backup.nix: not imported, it still expects a local
+    #   /backup disk. Nothing on this host is backed up, zigbee's data included.
 
     ../../modules/apps/media-storage.nix
     ../../modules/apps/jellyfin.nix
@@ -41,18 +39,15 @@
   services.openssh.listenAddresses = [ { addr = "10.100.0.1"; } ];
   networking.firewall.interfaces.wg0.allowedTCPPorts = [ 22 ];
   # sshd and Caddy bind 10.100.0.1, which only exists once wg0 is up. Without
-  # this they race wireguard-wg0 at boot (sshd: "Cannot assign requested
-  # address", seen 2026-11-18) and can hit their start limit: no SSH, headless.
+  # this they race wireguard-wg0 at boot ("Cannot assign requested address")
+  # and can hit their start limit: no SSH on a headless box.
   boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
 
-  # The NixOS release this host was first installed with. Set it at install
-  # and never change it afterwards (it is not the running version).
+  # The release this host was installed with; never change it.
   system.stateVersion = "25.11";
 
-  # Terminating REJECT for caddy loopback sandbox.
-  # Must live here (host file) so it is always appended AFTER all service-module
-  # ACCEPT rules. types.lines merges in evaluation order (modules → host),
-  # so a REJECT placed in any module would precede ACCEPT rules from later modules.
+  # Caddy's loopback sandbox ends here, after every module's ACCEPT (see the
+  # import-order note at the top).
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -j REJECT
   '';

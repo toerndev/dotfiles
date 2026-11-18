@@ -1,8 +1,8 @@
-# First install on the NUC: just enough to log in over the LAN and finish from
-# there (nix-migration.md 3.4). No WireGuard, sops, Caddy or zigbee; DHCP on
-# every NIC, so the NIC's name isn't needed yet. Then, on the NUC:
-#   set homelab.lanInterface in hosts/server, then
-#   sudo nixos-rebuild switch --flake ~/github/dotfiles/nix#server
+# First install of the server: just enough to log in over the LAN and finish
+# from there. No WireGuard, sops, Caddy or zigbee; DHCP on every NIC, so the
+# NIC's name isn't needed yet. Then, on the box: check homelab.lanInterface in
+# hosts/server, `nixos-rebuild test --sudo --flake ~/github/dotfiles/nix#server`
+# (SSH moves to WireGuard), then `switch`.
 { pkgs, ... }:
 {
   imports = [

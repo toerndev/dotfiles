@@ -56,10 +56,9 @@
   networking.firewall.allowedTCPPorts = [ 443 ];
   networking.firewall.interfaces.wg0.allowedTCPPorts = [ 80 ];
 
-  # Sandbox caddy loopback access: only allow backends it proxies to.
-  # The terminating REJECT for caddy loopback is defined in hosts/server/default.nix
-  # so it is always appended after all service-module ACCEPT rules regardless of
-  # import order (types.lines merges in evaluation order: core → services → host).
+  # Loopback sandbox: caddy may only reach its backends. Each module adds its
+  # own ACCEPT; the terminating REJECT is in hosts/server/default.nix, which
+  # merges last.
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT

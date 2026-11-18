@@ -317,9 +317,9 @@ everything again.
   - `devices.yaml`: names and per-device options.
 
 These three files are in the nightly borg `files` job (04:00, keeps 7
-dailies), declared in `modules/server/backup.nix`. **Not imported on the
-server until Phase 5 of `context/nix-migration.md`**, so until then there is
-no backup: copy them by hand after pairing or renaming anything.
+dailies), declared in `modules/server/backup.nix`. **That module isn't
+imported on the server yet**, so there is no backup: copy them by hand after
+pairing or renaming anything.
 
 ## Setting up from scratch and recovery
 

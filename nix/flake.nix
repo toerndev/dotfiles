@@ -56,7 +56,7 @@
     {
       nixosConfigurations = {
         server = mkHost { name = "server"; };
-        # First install on the NUC only (nix-migration.md 3.4); then switch to `server`.
+        # Minimal first install of the server: SSH on the LAN, no WireGuard or sops.
         server-bootstrap = mkHost { name = "server-bootstrap"; };
         htpc = mkHost {
           name = "htpc";
@@ -65,11 +65,9 @@
       };
 
       deploy.nodes = {
-        # Until the old box is taken apart, 10.100.0.1 is still the old box:
-        # don't deploy this before the NUC is installed.
         server = deployNode { name = "server"; hostname = "10.100.0.1"; };
 
-        # After the reinstall (Phase 4), through the server: the htpc has no WireGuard.
+        # Through the server: the htpc has no WireGuard.
         htpc = deployNode {
           name = "htpc";
           hostname = "192.168.1.71";
