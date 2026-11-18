@@ -40,6 +40,10 @@
   # sshd on WireGuard only: there is nothing listening on :22 on the LAN or WAN.
   services.openssh.listenAddresses = [ { addr = "10.100.0.1"; } ];
   networking.firewall.interfaces.wg0.allowedTCPPorts = [ 22 ];
+  # sshd and Caddy bind 10.100.0.1, which only exists once wg0 is up. Without
+  # this they race wireguard-wg0 at boot (sshd: "Cannot assign requested
+  # address", seen 2026-11-18) and can hit their start limit: no SSH, headless.
+  boot.kernel.sysctl."net.ipv4.ip_nonlocal_bind" = 1;
 
   # The NixOS release this host was first installed with. Set it at install
   # and never change it afterwards (it is not the running version).
