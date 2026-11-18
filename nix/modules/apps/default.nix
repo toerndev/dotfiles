@@ -5,8 +5,6 @@
     ./jellyfin.nix
     ./htpc.nix
     ./homepage.nix
-    ./nextcloud.nix
-    ./immich.nix
     ./directus
     ./site-builder
     ./zigbee

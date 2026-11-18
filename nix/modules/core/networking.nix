@@ -1,7 +1,7 @@
 { ... }:
 {
   # Wired only: enp8s0 is cabled straight to the OpenWrt router, which holds a
-  # DHCP reservation for this MAC → 192.168.1.70 (endlessh binds to that address).
+  # DHCP reservation for this MAC → 192.168.1.70 (router port forwards point to it).
   networking.useNetworkd = true;
   networking.useDHCP = false; # overrides the mkDefault in hardware-configuration.nix
   networking.interfaces.enp8s0 = {

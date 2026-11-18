@@ -13,11 +13,6 @@
     ./users.nix
     ./wireguard.nix
     ./wstunnel.nix
-    ./alloy.nix
-    ./crowdsec.nix
-    ./endlessh.nix
-    ./loki.nix
-    ./prometheus.nix
     ./backup.nix
   ];
 }

@@ -2,7 +2,7 @@
 {
   services.openssh = {
     enable = true;
-    # Restrict to WireGuard interface only, port 22 on LAN/public goes to endlessh-go.
+    # Restrict to WireGuard interface only, port 22 on LAN/public is closed.
     listenAddresses = [ { addr = "10.100.0.1"; } ];
     settings = {
       PasswordAuthentication = false;

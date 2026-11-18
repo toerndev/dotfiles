@@ -14,15 +14,8 @@
 
     # Unix socket instead of "admin off". Caddy's reload mechanism
     # sends the new config via the admin API, so it must be reachable.
-    # trusted_proxies static 127.0.0.1: allow local services (notify_push) to set
-    # X-Forwarded-For without Caddy replacing it with the loopback IP. Without this,
-    # Caddy treats localhost connections as untrusted and overwrites XFF, breaking
-    # notify_push's self-test and its ability to forward real client IPs to Nextcloud.
     globalConfig = ''
       admin unix//run/caddy/admin.sock
-      servers {
-        trusted_proxies static 127.0.0.1
-      }
     '';
 
     virtualHosts."datasvard.com" = {

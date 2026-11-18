@@ -11,10 +11,6 @@
 
   sops.secrets.ddclient_password = {};
 
-  sops.secrets.nextcloud_admin_password = {
-    owner = "nextcloud";
-  };
-
   # Directus JWT signing key — add to secrets/secrets.yaml before deploying.
   sops.secrets.directus_secret = {};
 

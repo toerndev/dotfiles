@@ -17,17 +17,14 @@
         };
         compression = "auto,zstd";
       };
-      psql = config.services.postgresql.package;
     in {
-      # db-* series: SQL dumps + SQLite snapshots, keep last 3
+      # db-* series: SQLite snapshots, keep last 3
       db = common // {
         startAt = "03:00";
         paths = [ "/tmp/borg-db-dump" ];
         prune.keep.last = 3;
         preHook = ''
           install -dm 700 /tmp/borg-db-dump
-          ${pkgs.util-linux}/bin/runuser -u postgres -- ${psql}/bin/pg_dump nextcloud > /tmp/borg-db-dump/nextcloud.sql
-          ${pkgs.util-linux}/bin/runuser -u postgres -- ${psql}/bin/pg_dump immich    > /tmp/borg-db-dump/immich.sql
           cp /var/lib/directus/database.sqlite              /tmp/borg-db-dump/directus.sqlite
           cp /var/lib/jellyfin/data/jellyfin.db             /tmp/borg-db-dump/jellyfin.db
         '';
@@ -38,17 +35,12 @@
       files = common // {
         startAt = "04:00";
         paths = [
-          config.services.nextcloud.datadir
-          config.services.immich.mediaLocation
           "/var/lib/directus/uploads"
           "/var/lib/jellyfin"
           "/media"
           "/etc/ssh/ssh_host_ed25519_key"
         ];
         exclude = [
-          # Immich: regeneratable from originals
-          "${config.services.immich.mediaLocation}/upload/thumbs"
-          "${config.services.immich.mediaLocation}/upload/encoded-video"
           # Jellyfin: downloaded metadata + cache are regeneratable
           "/var/lib/jellyfin/metadata"
           "/var/lib/jellyfin/cache"
