@@ -63,10 +63,15 @@
   networking.firewall.extraCommands = ''
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT
+    # DNS goes through systemd-resolved's stub; the ACME DNS-01 zone lookup needs it.
+    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -d 127.0.0.53 -p udp --dport 53 -j ACCEPT
+    iptables -A OUTPUT -m owner --uid-owner caddy -o lo -d 127.0.0.53 -p tcp --dport 53 -j ACCEPT
   '';
   networking.firewall.extraStopCommands = ''
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || true
     iptables -D OUTPUT -m owner --uid-owner caddy -o lo -p tcp --dport 8082 -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -d 127.0.0.53 -p udp --dport 53 -j ACCEPT || true
+    iptables -D OUTPUT -m owner --uid-owner caddy -o lo -d 127.0.0.53 -p tcp --dport 53 -j ACCEPT || true
   '';
 
   systemd.services.caddy.serviceConfig = {
