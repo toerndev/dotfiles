@@ -23,11 +23,6 @@ in
       acl = [ "pattern readwrite #" ];
     }];
   };
-  # The ACL is an /etc file outside the unit; without this a switch that only
-  # changes it leaves the running broker on the old rules. HUP rereads them.
-  systemd.services.mosquitto.reloadTriggers =
-    [ config.environment.etc."mosquitto/acl-0.conf".source ];
-
   services.zigbee2mqtt = {
     enable = true;
     settings = {

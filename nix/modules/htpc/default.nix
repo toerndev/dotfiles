@@ -1,4 +1,10 @@
 { config, pkgs, ... }:
+let
+  kodi = pkgs.kodi-gbm.withPackages (p: with p; [
+    jellyfin
+    youtube
+  ]);
+in
 {
   hardware.graphics = {
     enable = true;
@@ -35,13 +41,19 @@
     shell = pkgs.bash;
   };
 
+  # Boot straight into Kodi: autologin on tty1 starts it from the login shell.
+  # Quitting Kodi leaves that shell (Kodi's GBM mode can't switch TTYs, so this
+  # is the way out); `kodi-standalone` starts it again. Kodi restarts only
+  # after a crash (kodi-standalone's own loop).
   services.getty.autologinUser = "htpc-user";
+  environment.loginShellInit = ''
+    if [ "$USER" = htpc-user ] && [ "$(tty)" = /dev/tty1 ]; then
+      ${kodi}/bin/kodi-standalone
+    fi
+  '';
 
   environment.systemPackages = with pkgs; [
-    (kodi-gbm.withPackages(p: with p; [
-      jellyfin
-      youtube
-    ]))
+    kodi
     cage  # `cage steam` for initial Steam cache setup in Wayland, before Gamescope will work
     lutris
     mangohud

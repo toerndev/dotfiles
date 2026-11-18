@@ -9,7 +9,7 @@
     # then replace lib.fakeHash with the hash nix reports.
     package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/cloudflare@v0.0.0-20251204174556-6dc1fbb7e925" ];
-      hash = "sha256-4kDEcv4txNniFkMr6HtNUgN7ALkOGAPh6aUWJYCky9M=";
+      hash = "sha256-LLeIR/l1TnMPVEu6kGryg2oPT4GjvWzM8iI6adgq8IE=";
     };
 
     # Unix socket instead of "admin off". Caddy's reload mechanism
