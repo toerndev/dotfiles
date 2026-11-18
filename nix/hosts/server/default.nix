@@ -30,8 +30,8 @@
 
   networking.hostName = "server";
 
-  # TODO: the NUC's NIC name, from `ip -br link` on the NixOS USB (Phase 2).
-  homelab.lanInterface = "enp0s0";
+  # The NUC port labelled "1" (cabled); enp86s0 is the other port.
+  homelab.lanInterface = "enp87s0";
 
   # The NUC 16 Pro's platform is newer than the release's default kernel
   # (6.12 LTS on 25.11); idle power depends on platform support.
