@@ -14,7 +14,7 @@ LEVEL_MAX = 254
 
 LAMP_KEYS = {"min_brightness", "max_brightness", "min_kelvin", "max_kelvin",
              "sensors", "program"}
-PHASE_OVERRIDES = {"brightness", "kelvin", "program"}
+PHASE_OVERRIDES = {"at", "fade", "brightness", "kelvin", "program"}
 PHASE = "phase"            # a program brightness that means "the lamp's phase look"
 MIN = "min"                # a brightness that means "the lamp's min_brightness"
 EFFECTS = {"ember"}        # see engine.Engine._ember
@@ -77,6 +77,14 @@ def _kelvin(v, where):
     return v
 
 
+def _at(v, where):
+    """"HH:MM" -> minutes after midnight."""
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", str(v))
+    if not m or int(m[1]) > 23 or int(m[2]) > 59:
+        raise RulesError(f"{where}: expected \"HH:MM\", got {v!r}")
+    return int(m[1]) * 60 + int(m[2])
+
+
 def _keys(table, allowed, where, required=()):
     if not isinstance(table, dict):
         raise RulesError(f"{where}: expected a table")
@@ -135,6 +143,18 @@ class Lamp:
     sensors: tuple = ()
     program: Program | None = None
     per_phase: dict = field(default_factory=dict)   # phase name -> {key: value}
+    phases: tuple = ()         # this lamp's schedule: the shared phases, with its own `at`s
+
+    def phase_at(self, now):
+        minute = now.hour * 60 + now.minute
+        current = self.phases[-1]          # before the first phase: wrap
+        for p in self.phases:
+            if p.start <= minute:
+                current = p
+        return current
+
+    def previous(self, phase):
+        return self.phases[self.phases.index(phase) - 1]
 
     def program_at(self, phase):
         return self.per_phase.get(phase.name, {}).get("program", self.program)
@@ -157,7 +177,7 @@ class Sensor:
 
 @dataclass(frozen=True, eq=False)
 class Rules:
-    phases: tuple              # sorted by start
+    phases: tuple              # the shared schedule, sorted by start; each Lamp has its own
     lamps: dict                # name -> Lamp
     programs: dict             # name -> Program
     sensors: dict = field(default_factory=dict)   # name -> Sensor; only those with settings
@@ -174,29 +194,22 @@ class Rules:
                 out.setdefault(s, []).append(lamp.name)
         return out
 
-    def phase_at(self, now):
-        minute = now.hour * 60 + now.minute
-        current = self.phases[-1]          # before the first phase: wrap
-        for p in self.phases:
-            if p.start <= minute:
-                current = p
-        return current
-
-    def previous(self, phase):
-        return self.phases[self.phases.index(phase) - 1]
-
     def next_boundary(self, now):
-        """(when, phase) of the next phase start that has a fade, else None."""
+        """(when, names) of the next start of a phase with a fade, in any
+        lamp's schedule, and the phases that start then; else None."""
         best = None
         for days in (0, 1):
-            for p in self.phases:
-                if p.fade is None:
-                    continue
-                t = now.replace(hour=p.start // 60, minute=p.start % 60,
-                                second=0, microsecond=0) + timedelta(days=days)
-                if t > now and (best is None or t < best[0]):
-                    best = (t, p)
-        return best
+            for lamp in self.lamps.values():
+                for p in lamp.phases:
+                    if p.fade is None:
+                        continue
+                    t = now.replace(hour=p.start // 60, minute=p.start % 60,
+                                    second=0, microsecond=0) + timedelta(days=days)
+                    if t > now and (best is None or t < best[0]):
+                        best = (t, {p.name})
+                    elif best and t == best[0]:
+                        best[1].add(p.name)
+        return best and (best[0], sorted(best[1]))
 
 
 def _phase(i, p):
@@ -207,11 +220,8 @@ def _phase(i, p):
     if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9_-]*", name):
         raise RulesError(f"{where}: name must be lowercase letters, digits, - or _")
     where = f"[[phase]] {name}"
-    m = re.fullmatch(r"(\d{1,2}):(\d{2})", str(p["at"]))
-    if not m or int(m[1]) > 23 or int(m[2]) > 59:
-        raise RulesError(f"{where}: at must be \"HH:MM\", got {p['at']!r}")
     fade = p.get("fade")
-    return Phase(name, int(m[1]) * 60 + int(m[2]),
+    return Phase(name, _at(p["at"], f"{where} at"),
                  _brightness(p["brightness"], f"{where} brightness", (MIN,)),
                  _kelvin(p["kelvin"], f"{where} kelvin"),
                  None if fade is None else _duration(fade, f"{where} fade", MAX_FADE_S))
@@ -282,11 +292,34 @@ def _lamp_value(key, v, where, programs):
         return programs[v]
     if key in ("kelvin", "min_kelvin", "max_kelvin"):
         return _kelvin(v, where)
+    if key == "at":
+        return _at(v, where)
+    if key == "fade":
+        return _duration(v, where, MAX_FADE_S)
     return _percent(v, where)
 
 
-def _lamp(name, t, phase_names, programs, min_brightness):
+def _schedule(phases, per_phase, where):
+    """The shared phases with this lamp's own `at`s and `fade`s, sorted by
+    start. Moving a phase is fine; reordering them is almost certainly a
+    mistake."""
+    def own_phase(p):
+        o = per_phase.get(p.name, {})
+        return replace(p, start=o.pop("at", p.start), fade=o.pop("fade", p.fade))
+    own = sorted(map(own_phase, phases), key=lambda p: p.start)
+    names = [p.name for p in own]
+    i = names.index(phases[0].name)
+    if (names[i:] + names[:i] != [p.name for p in phases]
+            or len({p.start for p in own}) < len(own)):
+        raise RulesError(f"{where}: with its <phase>.at, the phases would run "
+                         + ", ".join(f"{p.name} {p.at}" for p in own)
+                         + "; they must keep their order, at different times")
+    return tuple(own)
+
+
+def _lamp(name, t, phases, programs, min_brightness):
     where = f"[lamp.{name}]"
+    phase_names = {p.name for p in phases}
     _keys(t, LAMP_KEYS | phase_names, where)
     kw = {"min_brightness": min_brightness}
     for key in LAMP_KEYS - {"sensors"}:
@@ -306,7 +339,8 @@ def _lamp(name, t, phase_names, programs, min_brightness):
     for pn, o in per_phase.items():
         if "program" in o:
             o["program"] = _resolved(o["program"], floor, f"{where} {pn}.program")
-    lamp = Lamp(name, sensors=tuple(sensors), per_phase=per_phase, **kw)
+    own = _schedule(phases, per_phase, where)
+    lamp = Lamp(name, sensors=tuple(sensors), per_phase=per_phase, phases=own, **kw)
     if lamp.min_brightness > lamp.max_brightness:
         raise RulesError(f"{where}: min_brightness is above max_brightness")
     if lamp.min_kelvin > lamp.max_kelvin:
@@ -354,7 +388,7 @@ def parse(raw):
     programs = {n: _program(n, t) for n, t in programs.items()}
     lamps = raw.get("lamp", {})
     _keys(lamps, lamps.keys(), "[lamp]")
-    lamps = {n: _lamp(n, t, set(names), programs, floor) for n, t in lamps.items()}
+    lamps = {n: _lamp(n, t, phases, programs, floor) for n, t in lamps.items()}
     sensors = raw.get("sensor", {})
     _keys(sensors, sensors.keys(), "[sensor]")
     used = {s for lamp in lamps.values() for s in lamp.sensors}

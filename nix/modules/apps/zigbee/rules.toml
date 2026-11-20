@@ -18,7 +18,8 @@ reconcile_fade = "3s"   # correcting a lamp found wrong when read live
 
 # ---------------------------------------------------------------------------
 # Phases of the day, shared by every lamp. Each runs from `at` until the next
-# one; the last wraps past midnight.
+# one; the last wraps past midnight. A lamp can move a phase with
+# `<phase>.at` (Lamps below).
 #
 #   brightness  percent, or "min" for each lamp's min_brightness. 0.4 = level 1
 #               of 254, the lowest a driver goes while on.
@@ -48,13 +49,6 @@ fade = "30m"
 [[phase]]
 name = "night"
 at = "20:00"
-brightness = 50
-kelvin = 2222
-fade = "30m"
-
-[[phase]]               # night, an hour later for the hallway: every other
-name = "hallway-night"  # lamp looks the same as in night, so nothing changes
-at = "21:00"            # for them. A lamp that overrides night overrides this too.
 brightness = 50
 kelvin = 2222
 fade = "30m"
@@ -146,6 +140,9 @@ after = [
 #   min_kelvin, max_kelvin              the range this lamp is set to, when
 #                                       narrower than z2m says (NFC-configured)
 #   <phase>.brightness, <phase>.kelvin  override one phase for this lamp
+#   <phase>.at = "HH:MM"                start that phase at another time for
+#                                       this lamp; the phases keep their order
+#   <phase>.fade = "0s"                 its own fade at that phase's start
 #   sensors = ["name", ...]             z2m names of occupancy sensors; any of
 #                                       them holds the lamp on. A sensor can be
 #                                       listed by several lamps.
@@ -160,7 +157,6 @@ after = [
 sensors = ["driveway-pir"]
 program = "driveway"   # until after Halloween; then "driveway" again
 night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
-hallway-night.brightness = 100
 late.brightness = 100   # hour (the phase is the program's ceiling)
 
 [lamp.hue-2700k]        # Hue White A60, 1100 lm, no colour temperature: a constant
@@ -178,15 +174,16 @@ late.program = "motion-late"
 
 [lamp.stairs-top]
 min_brightness = 15     # explicit: stays at 15% if [defaults] changes
-night.brightness = 15          # from 20:00 the floor is also the ceiling:
-hallway-night.brightness = 15  # motion lights it at 15% and it stays there
-late.brightness = 15           # until the program turns it off
+night.at = "19:00"      # from 19:00 the floor is also the ceiling: motion
+night.brightness = 15   # lights it at 15% and it stays there until the
+night.fade = "0s"       # program turns it off. Lit at 19:00: straight to 15%.
+late.brightness = 15
 sensors = ["stairs-top-pir"]
 program = "motion"
 late.program = "motion-late"
 
 [lamp.hallway]
-night.brightness = 100  # dims an hour later than the rest: hallway-night, 21:00
+night.at = "21:00"      # dims an hour later than the rest
 sensors = ["hallway-pir"]
 program = "motion"
 late.program = "motion-late"

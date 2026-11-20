@@ -12,6 +12,9 @@ Two kinds of lamp, decided by whether rules.toml gives it a `program`:
               The phase is the ceiling: a program level at or above the
               lamp's phase look IS the phase look, and follows phase fades.
 
+Each lamp has its own schedule: the shared phases, some perhaps moved by its
+own `<phase>.at`. So "the phase" is always that lamp's current phase.
+
 A sensor with `max_lux` only lights a lamp that is off while its own last
 illuminance is at or below it. A lamp already on ignores the lux: the lamp
 lights up its sensor, and motion while it is on must keep it on.
@@ -130,10 +133,13 @@ class Engine:
         self.reconcile("rules reloaded")
 
     def _plan(self):
-        nb = self.rules.next_boundary(self.now())
-        self.boundary_at, self.boundary_phase = nb or (None, None)
+        now = self.now()
+        # Each lamp's phase now: at the boundary, the lamps whose phase differs fade.
+        self.planned = {n: lamp.phase_at(now).name for n, lamp in self.rules.lamps.items()}
+        nb = self.rules.next_boundary(now)
+        self.boundary_at = nb and nb[0]
         if nb:
-            log.info("next scheduled fade: %s at %s", nb[1].name, f"{nb[0]:%a %H:%M}")
+            log.info("next scheduled fade: %s at %s", ", ".join(nb[1]), f"{nb[0]:%a %H:%M}")
 
     def check_names(self):
         """Warn once about names z2m does not know; pick up lamps that appear.
@@ -242,9 +248,12 @@ class Engine:
             self.z2m.set(name, {**p, "transition": round(left, 1)})
         self.unconfirmed[name] = Sent(missing, now + VERIFY, sent.tries)
 
-    def _fade_left(self, now):
-        """Seconds left of the current phase's fade, 0 when not fading."""
-        phase = self.rules.phase_at(now)
+    def _phase(self, name):
+        return self.rules.lamps[name].phase_at(self.now())
+
+    def _fade_left(self, name, now):
+        """Seconds left of the lamp's current phase fade, 0 when not fading."""
+        phase = self.rules.lamps[name].phase_at(now)
         if not phase.fade:
             return 0.0
         start = now.replace(hour=phase.start // 60, minute=phase.start % 60,
@@ -256,9 +265,8 @@ class Engine:
     def light(self, name, transition, why, brightness=PHASE, unless=None):
         """The phase look, or the phase's colour at a program's brightness.
         Nothing is sent if `unless` (a live read) already shows it."""
-        phase = self.rules.phase_at(self.now())
-        lamp = self.rules.lamps[name]
-        look = lamp.look(phase)
+        phase = self._phase(name)
+        look = self.rules.lamps[name].look(phase)
         if brightness != PHASE:
             look = Look(brightness, look.kelvin)
         hue = self._hue(name)
@@ -273,26 +281,26 @@ class Engine:
 
     def _hue(self, name):
         lamp = self.rules.lamps[name]
-        return lamp.program and lamp.program_at(self.rules.phase_at(self.now())).hue
+        return lamp.program and lamp.program_at(self._phase(name)).hue
 
     def _occupied(self, lamp):
         return any(self.occupied.get(s) for s in lamp.sensors)
 
     def _program(self, name):
-        return self.rules.lamps[name].program_at(self.rules.phase_at(self.now()))
+        return self.rules.lamps[name].program_at(self._phase(name))
 
     def _capped(self, name, b):
         """A program level, never brighter than the lamp's phase look. At or
         above it, it is the phase look (PHASE), so phase fades carry it."""
         if b == PHASE or b == 0:
             return b
-        look = self.rules.lamps[name].look(self.rules.phase_at(self.now()))
+        look = self.rules.lamps[name].look(self._phase(name))
         return PHASE if b >= look.brightness else b
 
     def _percent(self, name, b):
         if b != PHASE:
             return b
-        return self.rules.lamps[name].look(self.rules.phase_at(self.now())).brightness
+        return self.rules.lamps[name].look(self._phase(name)).brightness
 
     def hold(self, name, why):
         """An input holds the lamp on at its program's brightness."""
@@ -453,12 +461,18 @@ class Engine:
             return None
         return f"{lux:g} lx > max_lux {cfg.max_lux:g}"
 
-    def boundary(self, phase):
-        """A phase with a fade has started: fade lamps to whatever changed."""
-        prev = self.rules.previous(phase)
-        log.info("phase %s starts, fading over %s", phase.name, _secs(phase.fade))
+    def boundary(self, now):
+        """Phases with a fade have started: the lamps whose phase is no longer
+        the planned one fade to whatever changed. Normally that is the phase
+        that starts now; after a suspend or clock jump the plan can be hours
+        stale, so it is whichever phase is actually current."""
+        started = {}
         for name, lamp in self.rules.lamps.items():
-            new, old = lamp.look(phase), lamp.look(prev)
+            phase = lamp.phase_at(now)
+            if phase.fade is None or phase.name == self.planned.get(name):
+                continue
+            started.setdefault((phase.name, phase.fade), []).append(name)
+            new, old = lamp.look(phase), lamp.look(lamp.previous(phase))
             run = self.runs.get(name)
             if run and run.level not in (PHASE, 0) and run.level > new.brightness:
                 run.level = PHASE          # the phase is the ceiling: down with it
@@ -468,6 +482,8 @@ class Engine:
             payload = self._payload(name, new, phase.fade, brightness=bright, color=color)
             if payload:
                 self._send(name, payload)
+        for (phase, fade), names in started.items():
+            log.info("phase %s starts for %s, fading over %s", phase, ", ".join(names), _secs(fade))
 
     def reconcile(self, why, names=None, quiet=False):
         """Live-read lamps; the ones that answer ON, and differ, get the
@@ -499,7 +515,7 @@ class Engine:
             return
         run = self.runs.get(name)
         # Mid phase fade: carry on with what is left of it, don't cut it short.
-        fade = max(self.rules.reconcile_fade, self._fade_left(self.now()))
+        fade = max(self.rules.reconcile_fade, self._fade_left(name, self.now()))
         if self.rules.lamps[name].program is None:
             self.light(name, fade, "on at reconcile", unless=live)
         elif run is None:
@@ -571,11 +587,7 @@ class Engine:
             self.next_reconcile = now + RECONCILE_EVERY
             self.reconcile("periodic check", quiet=True)
         if self.boundary_at and now >= self.boundary_at:
-            # Normally the planned phase. After a suspend or clock jump the plan
-            # can be hours stale, so fade to the phase that is actually current.
-            phase = self.rules.phase_at(now)
-            if phase.fade is not None:
-                self.boundary(phase)
+            self.boundary(now)
             self._plan()
 
     def seconds_to_next(self, cap):

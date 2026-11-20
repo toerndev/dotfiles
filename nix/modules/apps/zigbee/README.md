@@ -128,10 +128,12 @@ rules need no change. Remove the old entry in the frontend.
 `rules.toml` documents every key. The model behind it:
 
 - **Phases** are shared by all lamps: a start time, a brightness and a
-  colour temperature.
+  colour temperature. A lamp can start a phase at its own time
+  (`night.at = "19:00"`), as long as the phases keep their order, and
+  give it its own `fade` (`night.fade = "0s"`: at once).
   - A phase with `fade` also acts at its start: lamps that are on fade to
     whatever changed. That's colour only at 16:30, and brightness only at
-    20:00, 21:00 (`hallway-night`: the hallway only) and 21:30.
+    `night` (20:00; stairs-top 19:00, hallway 21:00) and 21:30.
   - A phase without `fade` only applies when a lamp turns on. That is why
     nothing happens at 06:00.
 - **Plain lamps** (no `program`) follow the phase. They move to it when they
@@ -178,7 +180,7 @@ rules need no change. Remove the old entry in the frontend.
   `--safe-floor` writes it to the drivers as the power-on level.
 - **Per-lamp settings:** `min_brightness`/`max_brightness` clamp every
   phase look (not a program's own levels); `<phase>.<key>` overrides one
-  phase for one lamp.
+  phase for one lamp, its start time (`at`) and `fade` included.
 - **Safety:** colour changes may go to any lamp, since they never switch one
   on. Scheduled brightness changes only go to lamps already on, and to a
   programmed lamp only while it shows the phase look.

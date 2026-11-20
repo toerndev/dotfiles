@@ -72,18 +72,38 @@ class TestRules(unittest.TestCase):
         self.assertIn("bedroom-ceiling", r.lamps)
 
     def test_phase_lookup_wraps_past_midnight(self):
-        r = rules()
-        self.assertEqual(r.phase_at(at(5, 59)).name, "night")
-        self.assertEqual(r.phase_at(at(6)).name, "day")
-        self.assertEqual(r.phase_at(at(16)).name, "evening")
-        self.assertEqual(r.phase_at(at(23)).name, "night")
+        stairs = rules().lamps["stairs"]
+        self.assertEqual(stairs.phase_at(at(5, 59)).name, "night")
+        self.assertEqual(stairs.phase_at(at(6)).name, "day")
+        self.assertEqual(stairs.phase_at(at(16)).name, "evening")
+        self.assertEqual(stairs.phase_at(at(23)).name, "night")
 
     def test_next_boundary_skips_phases_without_fade(self):
         r = rules()
-        self.assertEqual(r.next_boundary(at(3)), (at(16), r.phases[1]))
-        self.assertEqual(r.next_boundary(at(17))[1].name, "night")
-        when, p = r.next_boundary(at(21))
-        self.assertEqual((when, p.name), (at(16) + timedelta(days=1), "evening"))
+        self.assertEqual(r.next_boundary(at(3)), (at(16), ["evening"]))
+        self.assertEqual(r.next_boundary(at(17)), (at(20), ["night"]))
+        self.assertEqual(r.next_boundary(at(21)), (at(16) + timedelta(days=1), ["evening"]))
+
+    def test_a_lamp_can_move_a_phase(self):
+        r = rules("night.at = '19:00'\nnight.brightness = 20", base=BASE.replace(
+            "[lamp.stairs]\n", "[lamp.stairs]\nevening.at = '15:00'\n") + "[lamp.early]\n")
+        early, bedroom = r.lamps["early"], r.lamps["bedroom"]
+        self.assertEqual(early.phase_at(at(19)).name, "night")
+        self.assertEqual(early.look(early.phase_at(at(19))).brightness, 20)
+        self.assertEqual(bedroom.phase_at(at(19)).name, "evening")
+        self.assertEqual(r.lamps["stairs"].phase_at(at(15)).name, "evening")
+        self.assertEqual(r.next_boundary(at(12)), (at(15), ["evening"]))
+        self.assertEqual(r.next_boundary(at(16, 30)), (at(19), ["night"]))
+        self.assertEqual(r.next_boundary(at(19)), (at(20), ["night"]))
+
+    def test_a_moved_phase_keeps_its_place(self):
+        for bad in ["[lamp.x]\nevening.at = '21:00'", "[lamp.x]\nnight.at = '16:00'",
+                    "[lamp.x]\nevening.at = '05:00'"]:
+            with self.assertRaisesRegex(RulesError, "keep their order"):
+                rules(bad)
+        r = rules("[lamp.x]\nnight.at = '00:30'")       # still between evening and day
+        self.assertEqual(r.lamps["x"].phase_at(at(23)).name, "evening")
+        self.assertEqual(r.lamps["x"].phase_at(at(1)).name, "night")
 
     def test_min_brightness_and_per_phase_overrides(self):
         r = rules()
@@ -131,6 +151,7 @@ program = "m"
             ("[lamp.x]\nmin_brightnes = 3", "unknown key"),
             ("[lamp.x]\nnigth.fade_out = '1m'", "unknown key"),
             ("[lamp.x]\nnight.fade_ot = '1m'", "unknown key"),
+            ("[lamp.x]\nnight.at = '7pm'", "HH:MM"),
             ("[program.p]\nafter = [{ fade = '5 minutes', to = 0 }]", "duration"),
             ("[program.p]\nafter = [{ fade = '2h', to = 0 }]", "1h49m"),
             ("[lamp.x]\nmin_brightness = 130", "percentage"),
@@ -289,6 +310,19 @@ class TestEngine(unittest.TestCase):
         self.advance(hours=9)                    # planned 16:00, woke at 21:00
         self.assertEqual(self.z.take(), [("bedroom", {"brightness": 76, "transition": 1800})])
         self.assertEqual(self.e.boundary_at, at(16) + timedelta(days=1))
+
+    def test_a_moved_phase_fades_only_its_lamp(self):
+        self.e = Engine(rules(base=BASE.replace(
+            "[lamp.stairs]\n", "[lamp.stairs]\nnight.at = '19:00'\nnight.fade = '0s'\n")),
+                        self.z, now=lambda: self.t)
+        self.ev("state", "bedroom", {"state": "ON"})
+        self.ev("state", "stairs", {"state": "ON"})
+        self.jump(at(18, 59, 59))
+        self.advance(seconds=1)                       # 19:00: only stairs, at once
+        self.assertEqual(self.z.take(), [("stairs", {"brightness": 1, "transition": 0})])
+        self.t = at(19, 59, 59)
+        self.advance(seconds=1)                       # 20:00: the rest, not stairs again
+        self.assertEqual(self.z.take(), [("bedroom", {"brightness": 76, "transition": 1800})])
 
     def test_lamp_that_appears_in_z2m_is_reconciled(self):
         self.e.check_names()                     # startup: all three known

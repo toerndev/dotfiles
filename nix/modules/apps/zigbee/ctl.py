@@ -289,7 +289,7 @@ def cmd_check(a):
         sys.exit(f"INVALID: {e}")
     print(f"{a.rules}: OK\n")
     for p in r.phases:
-        fade = f"fade {p.fade:g}s at start" if p.fade else "applies on turn-on only"
+        fade = f"fade {p.fade:g}s at start" if p.fade is not None else "applies on turn-on only"
         b = "min" if p.brightness == MIN else f"{p.brightness:g}%"
         print(f"  {p.at} {p.name:10} {b}  {p.kelvin}K  ({fade})")
     for name, lamp in r.lamps.items():
@@ -297,9 +297,9 @@ def cmd_check(a):
                         if s in r.sensors and r.sensors[s].max_lux is not None else "")
                    for s in lamp.sensors]
         print(f"\n[{name}]" + (f"  sensors: {', '.join(sensors)}" if sensors else ""))
-        for p in r.phases:
+        for p in lamp.phases:
             look = lamp.look(p)
-            line = f"  {p.name:10} {look.brightness:g}% (level {level(look.brightness)})  {look.kelvin}K"
+            line = f"  {p.at} {p.name:10} {look.brightness:g}% (level {level(look.brightness)})  {look.kelvin}K"
             if prog := lamp.program_at(p):
                 line += f"  [{prog.name}] {describe(prog)}"
             print(line)
