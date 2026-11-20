@@ -10,7 +10,7 @@
 # Adding lights and sensors: README.md in this directory.
 
 [defaults]
-min_brightness = 15     # = level 30, the drivers' power-on level. The floor: the
+min_brightness = 15     # = level 38. The floor: the
                         # dimmest a lamp shows while on, written "min" below.
                         # `lampctl startup --safe-floor` writes it to a driver.
 power_on_fade = "1s"    # how fast a lamp that just turned on moves to its phase
@@ -48,6 +48,13 @@ fade = "30m"
 [[phase]]
 name = "night"
 at = "20:00"
+brightness = 50
+kelvin = 2222
+fade = "30m"
+
+[[phase]]               # night, an hour later for the hallway: every other
+name = "hallway-night"  # lamp looks the same as in night, so nothing changes
+at = "21:00"            # for them. A lamp that overrides night overrides this too.
 brightness = 50
 kelvin = 2222
 fade = "30m"
@@ -91,10 +98,10 @@ fade = "30m"
 # { hold = "1m" } or so keeps a lamp up for someone walking back and forth.
 # ---------------------------------------------------------------------------
 
-[program.motion]        # the PIR holds ~1m after the last movement
+[program.motion]        # the SNZB-03PR2s clear 10-25s after triggering; the hold covers the rest
 brightness = 100
 after = [
-  { hold = "30s" },
+  { hold = "1m" },
   { fade = "1s", to = 50 },
   { fade = "5m", to = "min" },
   { hold = "5m" },
@@ -121,7 +128,7 @@ after = [
 [program.motion-late]   # 21:30-06:00
 brightness = 35
 after = [
-  { hold = "30s" },
+  { hold = "1m" },
   { fade = "1s", to = 25 },
   { hold = "5m" },
   { fade = "1s", to = "min" },
@@ -153,6 +160,7 @@ after = [
 sensors = ["driveway-pir"]
 program = "driveway"   # until after Halloween; then "driveway" again
 night.brightness = 100  # outdoors, dark-gated: full brightness whatever the
+hallway-night.brightness = 100
 late.brightness = 100   # hour (the phase is the program's ceiling)
 
 [lamp.hue-2700k]        # Hue White A60, 1100 lm, no colour temperature: a constant
@@ -168,7 +176,17 @@ sensors = ["stairs-bottom-pir"]
 program = "motion"
 late.program = "motion-late"
 
+[lamp.stairs-top]
+min_brightness = 15     # explicit: stays at 15% if [defaults] changes
+night.brightness = 15          # from 20:00 the floor is also the ceiling:
+hallway-night.brightness = 15  # motion lights it at 15% and it stays there
+late.brightness = 15           # until the program turns it off
+sensors = ["stairs-top-pir"]
+program = "motion"
+late.program = "motion-late"
+
 [lamp.hallway]
+night.brightness = 100  # dims an hour later than the rest: hallway-night, 21:00
 sensors = ["hallway-pir"]
 program = "motion"
 late.program = "motion-late"

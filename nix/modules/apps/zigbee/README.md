@@ -130,8 +130,8 @@ rules need no change. Remove the old entry in the frontend.
 - **Phases** are shared by all lamps: a start time, a brightness and a
   colour temperature.
   - A phase with `fade` also acts at its start: lamps that are on fade to
-    whatever changed. That's colour only at 16:00 and brightness only at
-    20:00 and 21:30.
+    whatever changed. That's colour only at 16:30, and brightness only at
+    20:00, 21:00 (`hallway-night`: the hallway only) and 21:30.
   - A phase without `fade` only applies when a lamp turns on. That is why
     nothing happens at 06:00.
 - **Plain lamps** (no `program`) follow the phase. They move to it when they
@@ -222,16 +222,21 @@ through a wall switch. Every driver is set with Sunricher's NFC app to:
   the LEDs' real range, so mireds sent are physically true. z2m still
   advertises the model's 160–450 and the engine clamps to that, so phases
   stay at or below 5000K.
-- **Power-on state on, power-on level 30** (~12%): the same as
-  `--safe-floor` below, which takes the level from `rules.toml`.
+- **Power-on state on, power-on level 30** (~12%). `--safe-floor` below
+  then writes the level from `rules.toml` instead (15% = level 38).
 - **Corridor fade time 0s.**
 
 Those settings live in the driver; a replacement driver needs them too.
 
-| name | IEEE |
-|---|---|
-| bedroom-ceiling | `0x187a3efffe35e73a` |
-| stairs-bottom | `0x70ac08fffe43ac14` |
+Power-on defaults as read with `lampctl startup` on 2026-11-20:
+
+| name | IEEE | power-on |
+|---|---|---|
+| bedroom-ceiling | `0x187a3efffe35e73a` | on, level 127, 2222K: not the floor |
+| stairs-bottom | `0x70ac08fffe43ac14` | on, level 38, 2222K (`--safe-floor`) |
+| stairs-top | `0x540f57fffec5b0ae` | on, level 38, 2222K (`--safe-floor`) |
+| hallway | `0x540f57fffec5b0a8` | on, level *previous*, colour no answer: needs `--safe-floor` |
+| celeste | `0x540f57fffec5b0b5` | offline, not in the rules |
 
 **Hue colour bulb:** `driveway` (`0x001788010ff7215f`), Philips
 8720169392182, Hue Essential White and Color Ambiance A60. It has full colour
@@ -260,7 +265,7 @@ These were measured on the lamps above, and the design depends on them.
   | attribute | value | why |
   |---|---|---|
   | `StartUpOnOff` | **1** (on) | 0 would need the server to light the lamp, and a dark lamp couldn't be fixed from the wall. 255 ("previous") means one Zigbee *off* leaves the wall switch unable to turn it on. |
-  | `StartUpCurrentLevel` | **30** (~12%) | `rules.toml`'s `[defaults] min_brightness` (11.8% = level 30), the floor. A power-on at night looks the same as a motion trigger and as the last step before off. Costs a slower ramp, below. |
+  | `StartUpCurrentLevel` | **38** (15%) | `rules.toml`'s `[defaults] min_brightness` (15% = level 38), the floor. A power-on at night looks the same as a motion trigger and as the last step before off. Costs a slower ramp, below. |
   | `StartUpColorTemperature` | **450** (2222K) | Fail warm: too warm at noon is corrected in seconds, 6250K at 03:00 is not. |
 
   These are fixed on purpose, not tracked from the schedule. They can only
@@ -271,8 +276,8 @@ These were measured on the lamps above, and the design depends on them.
   target is brighter at every instant. Light becomes visible after about
   `0.7s + 3s × 60 / level`: 5.2s at 40, 2.1s at 127, 1.4s at 254. 127 is the
   knee, but it showed ~50% for a few seconds after 20:00 before the rules
-  dimmed it; the drivers now use 30, which the formula puts at ~6.7s
-  (measured with the old 160–450 setup, not yet re-checked at 30).
+  dimmed it; `--safe-floor` now writes 38, which the formula puts at ~5.4s
+  (measured with the old 160–450 setup, not yet re-checked at 38).
   `OnOffTransitionTime` does not affect this ramp (tested).
 - **Anything z2m doesn't expose can still be read or written.**
   `{"read"|"write": {"cluster": …}}` on `<name>/set` works on every device;
